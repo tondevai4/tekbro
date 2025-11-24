@@ -1,8 +1,3 @@
-Understood. Let’s build a **proper, full-form, professional README** that actually reflects the scale of your project — achievements system, market engine, news engine, challenges, theming, app structure, everything.
-This is the kind of README you'd expect on a polished open-source repo.
-
-Here’s a **much deeper, fully cooked README.md** you can drop straight into your repo.
-
 ---
 
 # **PaperTrader**
