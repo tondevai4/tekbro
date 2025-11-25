@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, TrendingUp, Clock, Trophy } from 'lucide-react-native';
+import { Home, TrendingUp, Clock, Trophy, Newspaper } from 'lucide-react-native';
 import { COLORS, FONTS } from '../../constants/theme';
 import { View } from 'react-native';
 
@@ -45,6 +45,19 @@ export default function TabLayout() {
                     title: 'Market',
                     tabBarIcon: ({ color, focused }) => (
                         <TrendingUp
+                            size={24}
+                            color={color}
+                            style={focused ? { shadowColor: COLORS.primary, shadowRadius: 10, shadowOpacity: 0.5 } : {}}
+                        />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="news"
+                options={{
+                    title: 'News',
+                    tabBarIcon: ({ color, focused }) => (
+                        <Newspaper
                             size={24}
                             color={color}
                             style={focused ? { shadowColor: COLORS.primary, shadowRadius: 10, shadowOpacity: 0.5 } : {}}
