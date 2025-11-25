@@ -1,116 +1,185 @@
 import React, { useCallback, useState } from 'react';
-import { View, StyleSheet, FlatList, RefreshControl, Alert, Text, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, FlatList, RefreshControl, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
+import { TrendingUp, TrendingDown } from 'lucide-react-native';
 import { useStore } from '../../store/useStore';
-import { StockCard } from '../../components/StockCard';
-import { StatsHeader } from '../../components/StatsHeader';
-import { Header } from '../../components/Header';
-import { MetricCard } from '../../components/MetricCard';
-import { AchievementsSection } from '../../components/AchievementsSection';
+import { GlassCard } from '../../components/GlassCard';
+import { MiniChart } from '../../components/MiniChart';
 import { COLORS, SPACING, FONTS, RADIUS } from '../../constants/theme';
+import { GRADIENTS, getStockEmoji } from '../../constants/gradients';
 
 export default function PortfolioScreen() {
-    const { stocks, cash, holdings, xp, level, loginStreak, achievements, watchlist, reset } = useStore();
+    const { stocks, cash, holdings } = useStore();
     const [refreshing, setRefreshing] = useState(false);
 
-    // Calculate total equity
-    const stockValue = stocks.reduce((sum, stock) => {
-        const quantity = holdings[stock.symbol]?.quantity || 0;
-        return sum + (stock.price * quantity);
-    }, 0);
-    const totalEquity = cash + stockValue;
+    // Calculate portfolio metrics
+    const holdingsArray = Object.entries(holdings).map(([symbol, data]) => {
+        const stock = stocks.find(s => s.symbol === symbol);
+        if (!stock || data.quantity === 0) return null;
+
+        const currentValue = stock.price * data.quantity;
+        const invested = data.averageCost * data.quantity;
+        const gain = currentValue - invested;
+        const gainPercent = (gain / invested) * 100;
+
+        return {
+            symbol,
+            stock,
+            quantity: data.quantity,
+            currentValue,
+            invested,
+            gain,
+            gainPercent,
+        };
+    }).filter(Boolean);
+
+    const totalInvested = holdingsArray.reduce((sum, h) => sum + (h?.invested || 0), 0);
+    const totalValue = holdingsArray.reduce((sum, h) => sum + (h?.currentValue || 0), 0);
+    const totalGain = totalValue - totalInvested;
+    const totalGainPercent = totalInvested > 0 ? (totalGain / totalInvested) * 100 : 0;
+    const netWorth = cash + totalValue;
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setTimeout(() => {
-            setRefreshing(false);
-        }, 1000);
+        setTimeout(() => setRefreshing(false), 1000);
     }, []);
 
-    // Filter stocks: Owned OR Watched
-    const userStocks = stocks.filter(stock => {
-        const isOwned = holdings[stock.symbol]?.quantity > 0;
-        const isWatched = watchlist.includes(stock.symbol);
-        return isOwned || isWatched;
-    }).sort((a, b) => {
-        // Sort owned first, then watched
-        const aOwned = holdings[a.symbol]?.quantity > 0;
-        const bOwned = holdings[b.symbol]?.quantity > 0;
-        if (aOwned && !bOwned) return -1;
-        if (!aOwned && bOwned) return 1;
-        return 0;
-    });
+    const renderHoldingCard = ({ item }: any) => {
+        const isGain = item.gain >= 0;
+        const gradient = isGain ? GRADIENTS.gainSubtle : GRADIENTS.lossSubtle;
+        const emoji = getStockEmoji(item.symbol);
+
+        return (
+            <TouchableOpacity style={styles.holdingCard} activeOpacity={0.8}>
+                <LinearGradient
+                    colors={gradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.holdingGradient}
+                >
+                    {/* Emoji Icon */}
+                    <View style={styles.emojiContainer}>
+                        <Text style={styles.emoji}>{emoji}</Text>
+                    </View>
+
+                    {/* Stock Info */}
+                    <View style={styles.holdingInfo}>
+                        <Text style={styles.holdingSymbol}>{item.symbol}</Text>
+                        <Text style={styles.holdingQuantity}>{item.quantity} shares</Text>
+                    </View>
+
+                    {/* Mini Chart */}
+                    <View style={styles.chartContainer}>
+                        <MiniChart
+                            data={item.stock.history}
+                            color={isGain ? COLORS.positive : COLORS.negative}
+                            width={60}
+                            height={30}
+                        />
+                    </View>
+
+                    {/* Value & Gain */}
+                    <View style={styles.holdingValues}>
+                        <Text style={styles.holdingValue}>£{item.currentValue.toFixed(2)}</Text>
+                        <View style={styles.gainBadge}>
+                            {isGain ? (
+                                <TrendingUp size={12} color={COLORS.positive} strokeWidth={3} />
+                            ) : (
+                                <TrendingDown size={12} color={COLORS.negative} strokeWidth={3} />
+                            )}
+                            <Text style={[styles.gainText, { color: isGain ? COLORS.positive : COLORS.negative }]}>
+                                {isGain ? '+' : ''}{item.gainPercent.toFixed(2)}%
+                            </Text>
+                        </View>
+                    </View>
+                </LinearGradient>
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             <StatusBar style="light" />
 
-            <Header
-                title="Portfolio"
-                rightComponent={null}
-            />
+            <ScrollView
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={onRefresh}
+                        tintColor={COLORS.accent}
+                    />
+                }
+            >
+                {/* Header - Portfolio Value */}
+                <LinearGradient
+                    colors={['#000000', '#0A0A0A']}
+                    style={styles.header}
+                >
+                    <Text style={styles.headerLabel}>Portfolio Value</Text>
+                    <Text style={styles.portfolioValue}>£{netWorth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
 
-            <View style={styles.content}>
-                <FlatList
-                    ListHeaderComponent={
-                        <View style={styles.headerContent}>
-                            <StatsHeader
-                                xp={xp}
-                                level={level}
-                                loginStreak={loginStreak}
-                            />
-
-                            <View style={styles.statsRow}>
-                                <MetricCard
-                                    label="Buying Power"
-                                    value={`£${cash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                                />
-                                <View style={{ width: SPACING.md }} />
-                                <MetricCard
-                                    label="Net Worth"
-                                    value={`£${totalEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                                    variant={totalEquity >= 10000 ? 'positive' : 'default'}
-                                />
-                            </View>
-
-                            <AchievementsSection achievements={achievements} />
-
-                            <View style={styles.sectionHeader}>
-                                <Text style={styles.sectionTitle}>Your Assets</Text>
-                                <Text style={styles.sectionSubtitle}>
-                                    {Object.keys(holdings).length} Owned • {watchlist.length} Watched
+                    {/* Today's Gain Card */}
+                    <GlassCard style={styles.gainCard}>
+                        <View style={styles.gainCardContent}>
+                            <Text style={styles.gainLabel}>Total P&L</Text>
+                            <View style={styles.gainRow}>
+                                {totalGain >= 0 ? (
+                                    <TrendingUp size={20} color={COLORS.positive} strokeWidth={3} />
+                                ) : (
+                                    <TrendingDown size={20} color={COLORS.negative} strokeWidth={3} />
+                                )}
+                                <Text style={[styles.gainValue, { color: totalGain >= 0 ? COLORS.positive : COLORS.negative }]}>
+                                    {totalGain >= 0 ? '+' : ''}£{Math.abs(totalGain).toFixed(2)}
+                                </Text>
+                                <Text style={[styles.gainPercent, { color: totalGain >= 0 ? COLORS.positive : COLORS.negative }]}>
+                                    ({totalGain >= 0 ? '+' : ''}{totalGainPercent.toFixed(2)}%)
                                 </Text>
                             </View>
                         </View>
-                    }
-                    data={userStocks}
-                    keyExtractor={(item) => item.symbol}
-                    renderItem={({ item }) => <StockCard stock={item} />}
-                    contentContainerStyle={styles.listContent}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={refreshing}
-                            onRefresh={onRefresh}
-                            tintColor={COLORS.accent}
-                            colors={[COLORS.accent]}
-                        />
-                    }
-                    initialNumToRender={8}
-                    maxToRenderPerBatch={10}
-                    windowSize={5}
-                    removeClippedSubviews={true}
-                    showsVerticalScrollIndicator={false}
-                    ListEmptyComponent={
-                        <View style={styles.emptyState}>
-                            <Text style={styles.emptyText}>No stocks owned or watched yet.</Text>
-                            <Text style={styles.emptySubtext}>Visit the Market tab to start trading!</Text>
+                    </GlassCard>
+                </LinearGradient>
+
+                {/* Holdings Grid */}
+                <View style={styles.holdingsSection}>
+                    <Text style={styles.sectionTitle}>Your Holdings</Text>
+                    {holdingsArray.length > 0 ? (
+                        <View style={styles.holdingsGrid}>
+                            {holdingsArray.map((holding, index) => (
+                                <View key={holding.symbol} style={{ flex: 1, minWidth: '48%' }}>
+                                    {renderHoldingCard({ item: holding })}
+                                </View>
+                            ))}
                         </View>
-                    }
-                />
-            </View>
+                    ) : (
+                        <GlassCard style={styles.emptyCard}>
+                            <Text style={styles.emptyText}>No holdings yet</Text>
+                            <Text style={styles.emptySubtext}>Start trading to build your portfolio</Text>
+                        </GlassCard>
+                    )}
+                </View>
+
+                {/* Stats Footer */}
+                <View style={styles.statsFooter}>
+                    <GlassCard style={styles.statCard}>
+                        <Text style={styles.statLabel}>Cash</Text>
+                        <Text style={styles.statValue}>£{cash.toFixed(2)}</Text>
+                    </GlassCard>
+                    <GlassCard style={styles.statCard}>
+                        <Text style={styles.statLabel}>Invested</Text>
+                        <Text style={styles.statValue}>£{totalInvested.toFixed(2)}</Text>
+                    </GlassCard>
+                    <GlassCard style={styles.statCard}>
+                        <Text style={styles.statLabel}>Return</Text>
+                        <Text style={[styles.statValue, { color: totalGain >= 0 ? COLORS.positive : COLORS.negative }]}>
+                            {totalGain >= 0 ? '+' : ''}{totalGainPercent.toFixed(1)}%
+                        </Text>
+                    </GlassCard>
+                </View>
+            </ScrollView>
         </SafeAreaView>
     );
 }
@@ -118,70 +187,161 @@ export default function PortfolioScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.background,
+        backgroundColor: COLORS.bg,
     },
-    content: {
-        flex: 1,
+    header: {
+        padding: SPACING.xxl,
+        paddingTop: SPACING.xl,
     },
-    headerContent: {
-        marginBottom: SPACING.md,
+    headerLabel: {
+        fontSize: 14,
+        color: COLORS.textSub,
+        fontFamily: FONTS.medium,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginBottom: SPACING.sm,
     },
-    statsRow: {
+    portfolioValue: {
+        fontSize: 56,
+        fontWeight: '800',
+        color: COLORS.text,
+        fontFamily: FONTS.bold,
+        letterSpacing: -2,
+        marginBottom: SPACING.lg,
+    },
+    gainCard: {
+        marginTop: SPACING.md,
+    },
+    gainCardContent: {
+        gap: SPACING.sm,
+    },
+    gainLabel: {
+        fontSize: 12,
+        color: COLORS.textSub,
+        fontFamily: FONTS.medium,
+    },
+    gainRow: {
         flexDirection: 'row',
-        marginBottom: SPACING.xl,
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: SPACING.md,
-        paddingHorizontal: SPACING.xs,
+        gap: SPACING.sm,
+    },
+    gainValue: {
+        fontSize: 24,
+        fontWeight: '700',
+        fontFamily: FONTS.bold,
+    },
+    gainPercent: {
+        fontSize: 16,
+        fontFamily: FONTS.semibold,
+    },
+    holdingsSection: {
+        padding: SPACING.xl,
     },
     sectionTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: COLORS.text,
+        fontFamily: FONTS.bold,
+        marginBottom: SPACING.lg,
+    },
+    holdingsGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: SPACING.md,
+    },
+    holdingCard: {
+        marginBottom: SPACING.md,
+    },
+    holdingGradient: {
+        borderRadius: RADIUS.lg,
+        padding: SPACING.lg,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+    },
+    emojiContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: SPACING.sm,
+    },
+    emoji: {
+        fontSize: 24,
+    },
+    holdingInfo: {
+        marginBottom: SPACING.sm,
+    },
+    holdingSymbol: {
         fontSize: 18,
         fontWeight: '700',
         color: COLORS.text,
         fontFamily: FONTS.bold,
     },
-    sectionSubtitle: {
+    holdingQuantity: {
         fontSize: 12,
-        color: COLORS.textSecondary,
-        fontFamily: FONTS.medium,
-    },
-    listContent: {
-        paddingHorizontal: 16,
-        paddingBottom: 100,
-        paddingTop: 8,
-    },
-    emptyState: {
-        padding: SPACING.xl,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: SPACING.xl,
-    },
-    emptyText: {
-        color: COLORS.text,
-        fontSize: 16,
-        fontFamily: FONTS.medium,
-        marginBottom: 8,
-    },
-    emptySubtext: {
-        color: COLORS.textSecondary,
-        fontSize: 14,
+        color: COLORS.textSub,
         fontFamily: FONTS.regular,
     },
-    debugButton: {
-        margin: SPACING.xl,
-        padding: SPACING.md,
-        backgroundColor: COLORS.bgElevated,
-        borderRadius: RADIUS.md,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: COLORS.border,
+    chartContainer: {
+        marginVertical: SPACING.sm,
     },
-    debugText: {
-        color: COLORS.warning,
+    holdingValues: {
+        marginTop: SPACING.sm,
+    },
+    holdingValue: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: COLORS.text,
         fontFamily: FONTS.bold,
+        marginBottom: SPACING.xs,
+    },
+    gainBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    gainText: {
         fontSize: 14,
-    }
+        fontWeight: '600',
+        fontFamily: FONTS.semibold,
+    },
+    emptyCard: {
+        padding: SPACING.xxl,
+        alignItems: 'center',
+    },
+    emptyText: {
+        fontSize: 16,
+        color: COLORS.textSub,
+        fontFamily: FONTS.semibold,
+        marginBottom: SPACING.xs,
+    },
+    emptySubtext: {
+        fontSize: 14,
+        color: COLORS.textMuted,
+        fontFamily: FONTS.regular,
+    },
+    statsFooter: {
+        flexDirection: 'row',
+        gap: SPACING.md,
+        padding: SPACING.xl,
+    },
+    statCard: {
+        flex: 1,
+        padding: SPACING.lg,
+        alignItems: 'center',
+    },
+    statLabel: {
+        fontSize: 12,
+        color: COLORS.textSub,
+        fontFamily: FONTS.medium,
+        marginBottom: SPACING.xs,
+    },
+    statValue: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: COLORS.text,
+        fontFamily: FONTS.bold,
+    },
 });
