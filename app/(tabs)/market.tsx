@@ -1,43 +1,37 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Modal, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, TextInput, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useStore } from '../../store/useStore';
-import { StockCard } from '../../components/StockCard';
-import { SearchBar } from '../../components/SearchBar';
-import { Header } from '../../components/Header';
-import { COLORS, FONTS, SPACING, RADIUS } from '../../constants/theme';
-import { useMarketEngine } from '../../hooks/useMarketEngine';
-import { SlidersHorizontal, ArrowUpDown } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Search, TrendingUp, TrendingDown } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
+import { useStore } from '../../store/useStore';
+import { GlassCard } from '../../components/GlassCard';
+import { MiniChart } from '../../components/MiniChart';
+import { COLORS, FONTS, SPACING, RADIUS } from '../../constants/theme';
+import { GRADIENTS, getStockEmoji } from '../../constants/gradients';
+import { useMarketEngine } from '../../hooks/useMarketEngine';
 
-type SortOption = 'price_high' | 'price_low' | 'change_high' | 'change_low' | 'name_asc' | 'volatility';
-type SectorFilter = 'All' | 'Tech' | 'Finance' | 'Healthcare' | 'Consumer' | 'Crypto' | 'Energy' | 'Meme' | 'Luxury' | 'Index';
+type SectorFilter = 'All' | 'Tech' | 'Finance' | 'Healthcare' | 'Energy' | 'Crypto';
 
 export default function MarketScreen() {
     useMarketEngine();
-    const { stocks, watchlist } = useStore();
+    const router = useRouter();
+    const { stocks } = useStore();
     const [searchQuery, setSearchQuery] = useState('');
-    const [activeTab, setActiveTab] = useState<'all' | 'watchlist'>('all');
-    const [sortModalVisible, setSortModalVisible] = useState(false);
-    const [sortBy, setSortBy] = useState<SortOption>('name_asc');
     const [sectorFilter, setSectorFilter] = useState<SectorFilter>('All');
 
-    const sectors: SectorFilter[] = ['All', 'Tech', 'Finance', 'Healthcare', 'Consumer', 'Crypto', 'Energy', 'Meme', 'Luxury', 'Index'];
+    const sectors: SectorFilter[] = ['All', 'Tech', 'Finance', 'Healthcare', 'Energy', 'Crypto'];
 
     const filteredStocks = useMemo(() => {
         let result = stocks;
 
-        // Filter by Tab
-        if (activeTab === 'watchlist') {
-            result = result.filter(s => watchlist.includes(s.symbol));
-        }
-
-        // Filter by Sector
+        // Filter by sector
         if (sectorFilter !== 'All') {
             result = result.filter(s => s.sector === sectorFilter);
         }
 
-        // Filter by Search
+        // Filter by search
         if (searchQuery) {
             const query = searchQuery.toLowerCase();
             result = result.filter(s =>
@@ -46,185 +40,151 @@ export default function MarketScreen() {
             );
         }
 
-        // Sort
-        return result.sort((a, b) => {
-            switch (sortBy) {
-                case 'price_high':
-                    return b.price - a.price;
-                case 'price_low':
-                    return a.price - b.price;
-                case 'change_high': {
-                    const changeA = a.history.length >= 2 ? (a.price - a.history[a.history.length - 2].value) / a.history[a.history.length - 2].value : 0;
-                    const changeB = b.history.length >= 2 ? (b.price - b.history[b.history.length - 2].value) / b.history[b.history.length - 2].value : 0;
-                    return changeB - changeA;
-                }
-                case 'change_low': {
-                    const changeA = a.history.length >= 2 ? (a.price - a.history[a.history.length - 2].value) / a.history[a.history.length - 2].value : 0;
-                    const changeB = b.history.length >= 2 ? (b.price - b.history[b.history.length - 2].value) / b.history[b.history.length - 2].value : 0;
-                    return changeA - changeB;
-                }
-                case 'name_asc':
-                    return a.symbol.localeCompare(b.symbol);
-                case 'volatility':
-                    return b.volatility - a.volatility;
-                default:
-                    return 0;
-            }
-        });
-    }, [stocks, watchlist, searchQuery, activeTab, sortBy, sectorFilter]);
-
-    const handleSort = (option: SortOption) => {
-        setSortBy(option);
-        setSortModalVisible(false);
-        Haptics.selectionAsync();
-    };
+        return result;
+    }, [stocks, searchQuery, sectorFilter]);
 
     const handleSectorFilter = (sector: SectorFilter) => {
         setSectorFilter(sector);
         Haptics.selectionAsync();
     };
 
+    const handleStockPress = (symbol: string) => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.push(`/stock/${symbol}`);
+    };
+
+    const renderStockCard = ({ item }: any) => {
+        const priceChange = item.history.length >= 2
+            ? item.price - item.history[item.history.length - 2].value
+            : 0;
+        const priceChangePercent = item.history.length >= 2
+            ? (priceChange / item.history[item.history.length - 2].value) * 100
+            : 0;
+        const isPositive = priceChange >= 0;
+        const emoji = getStockEmoji(item.symbol);
+
+        return (
+            <TouchableOpacity
+                onPress={() => handleStockPress(item.symbol)}
+                activeOpacity={0.8}
+            >
+                <GlassCard style={styles.stockCard}>
+                    <View style={styles.stockHeader}>
+                        {/* Emoji Icon */}
+                        <View style={styles.emojiContainer}>
+                            <Text style={styles.emoji}>{emoji}</Text>
+                        </View>
+
+                        {/* Stock Info */}
+                        <View style={styles.stockInfo}>
+                            <Text style={styles.stockSymbol}>{item.symbol}</Text>
+                            <Text style={styles.stockName} numberOfLines={1}>{item.name}</Text>
+                        </View>
+
+                        {/* Mini Chart */}
+                        <View style={styles.chartContainer}>
+                            <MiniChart
+                                data={item.history}
+                                color={isPositive ? COLORS.positive : COLORS.negative}
+                                width={80}
+                                height={40}
+                            />
+                        </View>
+                    </View>
+
+                    {/* Price & Buy Button */}
+                    <View style={styles.stockFooter}>
+                        <View style={styles.priceSection}>
+                            <Text style={styles.price}>£{item.price.toFixed(2)}</Text>
+                            <View style={[styles.changeBadge, { backgroundColor: isPositive ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)' }]}>
+                                {isPositive ? (
+                                    <TrendingUp size={12} color={COLORS.positive} strokeWidth={3} />
+                                ) : (
+                                    <TrendingDown size={12} color={COLORS.negative} strokeWidth={3} />
+                                )}
+                                <Text style={[styles.changeText, { color: isPositive ? COLORS.positive : COLORS.negative }]}>
+                                    {isPositive ? '+' : ''}{priceChangePercent.toFixed(2)}%
+                                </Text>
+                            </View>
+                        </View>
+
+                        <TouchableOpacity
+                            onPress={() => handleStockPress(item.symbol)}
+                            activeOpacity={0.8}
+                        >
+                            <LinearGradient
+                                colors={GRADIENTS.buy}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={styles.buyButton}
+                            >
+                                <Text style={styles.buyButtonText}>Buy</Text>
+                            </LinearGradient>
+                        </TouchableOpacity>
+                    </View>
+                </GlassCard>
+            </TouchableOpacity>
+        );
+    };
+
     return (
-        <SafeAreaView style={styles.container}>
-            <Header
-                title="Market"
-                rightComponent={
-                    <TouchableOpacity onPress={() => setSortModalVisible(true)}>
-                        <SlidersHorizontal size={24} color={COLORS.text} />
-                    </TouchableOpacity>
-                }
-            />
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <View style={styles.header}>
+                <Text style={styles.headerTitle}>Market</Text>
 
-            <View style={styles.searchContainer}>
-                <SearchBar
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder="Search stocks..."
-                />
-            </View>
-
-            <View style={styles.tabs}>
-                <TouchableOpacity
-                    style={[styles.tab, activeTab === 'all' && styles.activeTab]}
-                    onPress={() => {
-                        setActiveTab('all');
-                        Haptics.selectionAsync();
-                    }}
+                {/* Search Bar */}
+                <LinearGradient
+                    colors={['rgba(6, 182, 212, 0.2)', 'rgba(6, 182, 212, 0.05)']}
+                    style={styles.searchContainer}
                 >
-                    <Text style={[styles.tabText, activeTab === 'all' && styles.activeTabText]}>All Stocks</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.tab, activeTab === 'watchlist' && styles.activeTab]}
-                    onPress={() => {
-                        setActiveTab('watchlist');
-                        Haptics.selectionAsync();
-                    }}
-                >
-                    <Text style={[styles.tabText, activeTab === 'watchlist' && styles.activeTabText]}>Watchlist</Text>
-                </TouchableOpacity>
-            </View>
+                    <Search size={20} color={COLORS.textSub} />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Search stocks..."
+                        placeholderTextColor={COLORS.textMuted}
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                    />
+                </LinearGradient>
 
-            {/* Sector Filter Carousel */}
-            <View style={styles.sectorFilterContainer}>
-                <Text style={styles.filterLabel}>Sectors</Text>
+                {/* Sector Filters */}
                 <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.sectorScroll}
+                    style={styles.filtersScroll}
+                    contentContainerStyle={styles.filtersContainer}
                 >
-                    {sectors.map((sector) => (
+                    {sectors.map(sector => (
                         <TouchableOpacity
                             key={sector}
-                            style={[
-                                styles.sectorPill,
-                                sectorFilter === sector && styles.activeSectorPill
-                            ]}
                             onPress={() => handleSectorFilter(sector)}
+                            activeOpacity={0.7}
                         >
-                            <Text style={[
-                                styles.sectorText,
-                                sectorFilter === sector && styles.activeSectorText
-                            ]}>
-                                {sector}
-                            </Text>
+                            {sectorFilter === sector ? (
+                                <LinearGradient
+                                    colors={GRADIENTS.portfolio}
+                                    style={styles.filterChip}
+                                >
+                                    <Text style={styles.filterChipTextActive}>{sector}</Text>
+                                </LinearGradient>
+                            ) : (
+                                <View style={styles.filterChipInactive}>
+                                    <Text style={styles.filterChipText}>{sector}</Text>
+                                </View>
+                            )}
                         </TouchableOpacity>
                     ))}
                 </ScrollView>
             </View>
 
-            {/* Results Label */}
-            <View style={styles.resultsHeader}>
-                <Text style={styles.resultsLabel}>
-                    {filteredStocks.length} {filteredStocks.length === 1 ? 'stock' : 'stocks'}
-                </Text>
-            </View>
-
+            {/* Stock List */}
             <FlatList
                 data={filteredStocks}
-                keyExtractor={item => item.id}
-                renderItem={({ item }) => <StockCard stock={item} />}
-                contentContainerStyle={styles.list}
+                keyExtractor={item => item.symbol}
+                renderItem={renderStockCard}
+                contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
-                // Performance optimizations
-                getItemLayout={(data, index) => ({
-                    length: 84, // Approximate height of StockCard (padding + content)
-                    offset: 84 * index,
-                    index,
-                })}
-                removeClippedSubviews={true}
-                maxToRenderPerBatch={10}
-                updateCellsBatchingPeriod={50}
-                windowSize={10}
-                initialNumToRender={10}
-                ListEmptyComponent={
-                    <View style={styles.emptyState}>
-                        <Text style={styles.emptyText}>No stocks found</Text>
-                        <Text style={styles.emptySubtext}>Try adjusting your filters</Text>
-                    </View>
-                }
             />
-
-            <Modal
-                visible={sortModalVisible}
-                transparent={true}
-                animationType="fade"
-                onRequestClose={() => setSortModalVisible(false)}
-            >
-                <TouchableOpacity
-                    style={styles.modalOverlay}
-                    activeOpacity={1}
-                    onPress={() => setSortModalVisible(false)}
-                >
-                    <View style={styles.modalContent}>
-                        <Text style={styles.modalTitle}>Sort By</Text>
-
-                        <TouchableOpacity style={styles.sortOption} onPress={() => handleSort('name_asc')}>
-                            <Text style={[styles.sortText, sortBy === 'name_asc' && styles.activeSortText]}>Name (A-Z)</Text>
-                            {sortBy === 'name_asc' && <ArrowUpDown size={16} color={COLORS.accent} />}
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.sortOption} onPress={() => handleSort('price_high')}>
-                            <Text style={[styles.sortText, sortBy === 'price_high' && styles.activeSortText]}>Price (High to Low)</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.sortOption} onPress={() => handleSort('price_low')}>
-                            <Text style={[styles.sortText, sortBy === 'price_low' && styles.activeSortText]}>Price (Low to High)</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.sortOption} onPress={() => handleSort('change_high')}>
-                            <Text style={[styles.sortText, sortBy === 'change_high' && styles.activeSortText]}>Top Gainers</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.sortOption} onPress={() => handleSort('change_low')}>
-                            <Text style={[styles.sortText, sortBy === 'change_low' && styles.activeSortText]}>Top Losers</Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity style={styles.sortOption} onPress={() => handleSort('volatility')}>
-                            <Text style={[styles.sortText, sortBy === 'volatility' && styles.activeSortText]}>Most Volatile</Text>
-                        </TouchableOpacity>
-                    </View>
-                </TouchableOpacity>
-            </Modal>
         </SafeAreaView>
     );
 }
@@ -234,143 +194,145 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: COLORS.bg,
     },
-    searchContainer: {
+    header: {
         paddingHorizontal: SPACING.xl,
-        marginBottom: SPACING.md,
+        paddingTop: SPACING.lg,
+        paddingBottom: SPACING.md,
     },
-    tabs: {
-        flexDirection: 'row',
-        paddingHorizontal: SPACING.xl,
-        marginBottom: SPACING.lg,
-        gap: SPACING.md,
-    },
-    tab: {
-        paddingVertical: SPACING.sm,
-        paddingHorizontal: SPACING.lg,
-        borderRadius: RADIUS.full,
-        backgroundColor: COLORS.bgElevated,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    activeTab: {
-        backgroundColor: COLORS.accent,
-        borderColor: COLORS.accent,
-    },
-    tabText: {
-        color: COLORS.textSub,
-        fontSize: FONTS.sizes.sm,
-        fontFamily: FONTS.semibold,
-    },
-    activeTabText: {
-        color: '#000',
+    headerTitle: {
+        fontSize: 32,
+        fontWeight: '800',
+        color: COLORS.text,
         fontFamily: FONTS.bold,
+        marginBottom: SPACING.lg,
     },
-    sectorFilterContainer: {
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: SPACING.lg,
+        paddingVertical: SPACING.md,
+        borderRadius: RADIUS.lg,
+        borderWidth: 1,
+        borderColor: 'rgba(6, 182, 212, 0.3)',
+        marginBottom: SPACING.lg,
+    },
+    searchInput: {
+        flex: 1,
+        marginLeft: SPACING.sm,
+        fontSize: 16,
+        color: COLORS.text,
+        fontFamily: FONTS.regular,
+    },
+    filtersScroll: {
         marginBottom: SPACING.md,
     },
-    filterLabel: {
-        color: COLORS.textSub,
-        fontSize: FONTS.sizes.xs,
-        fontFamily: FONTS.medium,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        paddingHorizontal: SPACING.xl,
-        marginBottom: SPACING.sm,
-    },
-    sectorScroll: {
-        paddingHorizontal: SPACING.xl,
+    filtersContainer: {
         gap: SPACING.sm,
     },
-    sectorPill: {
-        paddingVertical: SPACING.xs,
-        paddingHorizontal: SPACING.md,
+    filterChip: {
+        paddingHorizontal: SPACING.lg,
+        paddingVertical: SPACING.sm,
+        borderRadius: RADIUS.full,
+    },
+    filterChipInactive: {
+        paddingHorizontal: SPACING.lg,
+        paddingVertical: SPACING.sm,
         borderRadius: RADIUS.full,
         backgroundColor: COLORS.bgSubtle,
         borderWidth: 1,
         borderColor: COLORS.border,
-        marginRight: SPACING.sm,
     },
-    activeSectorPill: {
-        backgroundColor: COLORS.accentSubtle,
-        borderColor: COLORS.accent,
+    filterChipTextActive: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#000',
+        fontFamily: FONTS.semibold,
     },
-    sectorText: {
+    filterChipText: {
+        fontSize: 14,
+        fontWeight: '600',
         color: COLORS.textSub,
-        fontSize: FONTS.sizes.sm,
-        fontFamily: FONTS.medium,
+        fontFamily: FONTS.semibold,
     },
-    activeSectorText: {
-        color: COLORS.accent,
+    listContent: {
+        padding: SPACING.xl,
+        gap: SPACING.md,
+    },
+    stockCard: {
+        padding: SPACING.lg,
+    },
+    stockHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: SPACING.md,
+    },
+    emojiContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: SPACING.md,
+    },
+    emoji: {
+        fontSize: 24,
+    },
+    stockInfo: {
+        flex: 1,
+    },
+    stockSymbol: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: COLORS.text,
         fontFamily: FONTS.bold,
     },
-    resultsHeader: {
-        paddingHorizontal: SPACING.xl,
-        paddingVertical: SPACING.sm,
-        marginBottom: SPACING.sm,
-    },
-    resultsLabel: {
-        color: COLORS.textMuted,
-        fontSize: FONTS.sizes.xs,
-        fontFamily: FONTS.medium,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-    },
-    list: {
-        paddingHorizontal: SPACING.xl,
-        paddingBottom: SPACING.xl,
-    },
-    emptyState: {
-        alignItems: 'center',
-        marginTop: SPACING.xxl,
-        padding: SPACING.xl,
-    },
-    emptyText: {
-        color: COLORS.text,
-        fontSize: FONTS.sizes.md,
-        fontFamily: FONTS.semibold,
-        marginBottom: SPACING.xs,
-    },
-    emptySubtext: {
+    stockName: {
+        fontSize: 13,
         color: COLORS.textSub,
-        fontSize: FONTS.sizes.sm,
         fontFamily: FONTS.regular,
     },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.85)',
-        justifyContent: 'center',
-        alignItems: 'center',
+    chartContainer: {
+        marginLeft: SPACING.sm,
     },
-    modalContent: {
-        width: '80%',
-        backgroundColor: COLORS.bgElevated,
-        borderRadius: RADIUS.lg,
-        padding: SPACING.xl,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    modalTitle: {
-        color: COLORS.text,
-        fontSize: FONTS.sizes.lg,
-        fontFamily: FONTS.bold,
-        marginBottom: SPACING.lg,
-        textAlign: 'center',
-    },
-    sortOption: {
+    stockFooter: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: SPACING.md,
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.border,
     },
-    sortText: {
-        color: COLORS.textSub,
-        fontSize: FONTS.sizes.md,
-        fontFamily: FONTS.medium,
+    priceSection: {
+        flex: 1,
     },
-    activeSortText: {
-        color: COLORS.accent,
+    price: {
+        fontSize: 24,
+        fontWeight: '700',
+        color: COLORS.text,
         fontFamily: FONTS.bold,
-    }
+        marginBottom: SPACING.xs,
+    },
+    changeBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        alignSelf: 'flex-start',
+        paddingHorizontal: SPACING.sm,
+        paddingVertical: 4,
+        borderRadius: RADIUS.sm,
+    },
+    changeText: {
+        fontSize: 12,
+        fontWeight: '600',
+        fontFamily: FONTS.semibold,
+    },
+    buyButton: {
+        paddingHorizontal: SPACING.xl,
+        paddingVertical: SPACING.md,
+        borderRadius: RADIUS.md,
+    },
+    buyButtonText: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#000',
+        fontFamily: FONTS.bold,
+    },
 });
