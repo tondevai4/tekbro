@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ImageBackground } from 'react-native';
 import { TrendingUp, TrendingDown, Clock, X } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,7 +22,7 @@ const NEWS_BACKGROUNDS = {
     finance: 'https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?w=800&q=80', // Finance
 };
 
-export const NewsCard: React.FC<NewsCardProps> = ({ news, onDismiss, onPress }) => {
+const NewsCardComponent: React.FC<NewsCardProps> = ({ news, onDismiss, onPress }) => {
     const getImpactColor = () => {
         if (news.impact > 0) return COLORS.positive;
         if (news.impact < 0) return COLORS.negative;
@@ -144,6 +144,15 @@ export const NewsCard: React.FC<NewsCardProps> = ({ news, onDismiss, onPress }) 
         </TouchableOpacity>
     );
 };
+
+// Memoize with custom comparison to prevent image reloads
+export const NewsCard = memo(NewsCardComponent, (prevProps, nextProps) => {
+    return (
+        prevProps.news.id === nextProps.news.id &&
+        prevProps.news.headline === nextProps.news.headline &&
+        prevProps.news.timestamp === nextProps.news.timestamp
+    );
+});
 
 const styles = StyleSheet.create({
     container: {
