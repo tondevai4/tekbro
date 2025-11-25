@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { TrendingUp, TrendingDown, Zap, Star } from 'lucide-react-native';
@@ -20,7 +20,7 @@ const COMPANY_ICONS: Record<string, string> = {
     'SNAP': '👻', 'SPOT': '🎵', 'TWTR': '🐦', 'ZM': '📹', 'DOCU': '📝',
 };
 
-export const StockCard: React.FC<StockCardProps> = ({ stock }) => {
+const StockCardComponent: React.FC<StockCardProps> = ({ stock }) => {
     const router = useRouter();
     const { watchlist, toggleWatchlist, buyStock, cash } = useStore();
     const isWatchlisted = watchlist.includes(stock.symbol);
@@ -78,39 +78,60 @@ export const StockCard: React.FC<StockCardProps> = ({ stock }) => {
                     </View>
                 </View>
 
-                {/* Symbol, Name, Trend */}
-                <View style={styles.middleSection}>
-                    <Text style={styles.symbol}>{stock.symbol}</Text>
-                    <Text style={styles.name} numberOfLines={1}>{stock.name}</Text>
-                    <Text style={[styles.trendText, { color: isPositive ? COLORS.positive : COLORS.negative }]}>
-                        {isPositive ? '↗' : '↘'} Trending {isPositive ? 'Up' : 'Down'}
-                    </Text>
-                </View>
+                {/* Stock Info */}
+                <View style={styles.infoContainer}>
+                    <View style={styles.topRow}>
+                        <View style={styles.symbolContainer}>
+                            <Text style={styles.symbol}>{stock.symbol}</Text>
+                            <TouchableOpacity
+                                onPress={handleToggleWatchlist}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <Star
+                                    size={16}
+                                    color={isWatchlisted ? COLORS.accent : COLORS.textMuted}
+                                    fill={isWatchlisted ? COLORS.accent : 'transparent'}
+                                />
+                            </TouchableOpacity>
+                        </View>
 
-                {/* Price and Actions */}
-                <View style={styles.rightSection}>
-                    <Text style={styles.price}>£{stock.price.toFixed(2)}</Text>
-                    <View style={styles.changeContainer}>
-                        {isPositive ? (
-                            <TrendingUp size={12} color={COLORS.positive} strokeWidth={2.5} />
-                        ) : (
-                            <TrendingDown size={12} color={COLORS.negative} strokeWidth={2.5} />
-                        )}
-                        <Text style={[styles.changeText, { color: isPositive ? COLORS.positive : COLORS.negative }]}>
-                            {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
-                        </Text>
+                        <View style={styles.priceContainer}>
+                            <Text style={styles.price}>
+                                £{stock.price.toLocaleString(undefined, {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                })}
+                            </Text>
+                        </View>
                     </View>
 
-                    <View style={styles.actions}>
-                        <TouchableOpacity style={styles.actionButton} onPress={handleQuickBuy}>
-                            <Zap size={18} color={COLORS.accent} fill={COLORS.accent} />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.actionButton} onPress={handleToggleWatchlist}>
-                            <Star
-                                size={18}
-                                color={isWatchlisted ? COLORS.warning : COLORS.textMuted}
-                                fill={isWatchlisted ? COLORS.warning : 'none'}
-                            />
+                    <View style={styles.bottomRow}>
+                        <View style={styles.changeContainer}>
+                            {isPositive ? (
+                                <TrendingUp size={14} color={COLORS.positive} />
+                            ) : (
+                                <TrendingDown size={14} color={COLORS.negative} />
+                            )}
+                            <Text style={[
+                                styles.changeText,
+                                isPositive ? styles.positiveText : styles.negativeText
+                            ]}>
+                                {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
+                            </Text>
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.quickBuyButton}
+                            onPress={handleQuickBuy}
+                            activeOpacity={0.7}
+                        >
+                            <Zap size={12} color={cash >= stock.price ? '#000' : COLORS.textMuted} />
+                            <Text style={[
+                                styles.quickBuyText,
+                                cash < stock.price && styles.disabledText
+                            ]}>
+                                Buy
+                            </Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -119,20 +140,27 @@ export const StockCard: React.FC<StockCardProps> = ({ stock }) => {
     );
 };
 
+// Memoize with custom comparison to prevent unnecessary re-renders
+export const StockCard = memo(StockCardComponent, (prevProps, nextProps) => {
+    return (
+        prevProps.stock.symbol === nextProps.stock.symbol &&
+        prevProps.stock.price === nextProps.stock.price &&
+        prevProps.stock.history.length === nextProps.stock.history.length
+    );
+});
+
 const styles = StyleSheet.create({
     container: {
-        marginBottom: SPACING.md,
+        marginBottom: SPACING.sm,
     },
     card: {
-        flexDirection: 'row',
-        alignItems: 'center',
+        borderRadius: RADIUS.lg,
         padding: SPACING.md,
-        borderRadius: RADIUS.xl,
         borderWidth: 1,
-        borderColor: COLORS.border,
+        borderColor: 'rgba(255,255,255,0.1)',
     },
     iconContainer: {
-        marginRight: SPACING.md,
+        marginBottom: SPACING.sm,
     },
     icon: {
         width: 48,
@@ -143,52 +171,69 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     iconText: {
-        fontSize: 24,
+        fontSize: 28,
     },
-    middleSection: {
-        flex: 1,
-        marginRight: SPACING.md,
+    infoContainer: {
+        gap: SPACING.sm,
+    },
+    topRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+    },
+    symbolContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: SPACING.xs,
     },
     symbol: {
-        fontSize: FONTS.sizes.md,
+        fontSize: FONTS.sizes.lg,
         fontFamily: FONTS.bold,
-        color: COLORS.text,
-        marginBottom: 2,
+        color: '#FFF',
     },
-    name: {
-        fontSize: FONTS.sizes.xs,
-        fontFamily: FONTS.regular,
-        color: COLORS.textSub,
-        marginBottom: SPACING.xs,
-    },
-    trendText: {
-        fontSize: FONTS.sizes.xs,
-        fontFamily: FONTS.medium,
-    },
-    rightSection: {
+    priceContainer: {
         alignItems: 'flex-end',
     },
     price: {
         fontSize: FONTS.sizes.lg,
         fontFamily: FONTS.bold,
-        color: COLORS.text,
-        marginBottom: 2,
+        color: '#FFF',
+    },
+    bottomRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
     },
     changeContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 4,
-        marginBottom: SPACING.sm,
     },
     changeText: {
+        fontSize: FONTS.sizes.sm,
+        fontFamily: FONTS.medium,
+    },
+    positiveText: {
+        color: COLORS.positive,
+    },
+    negativeText: {
+        color: COLORS.negative,
+    },
+    quickBuyButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+        backgroundColor: COLORS.accent,
+        paddingHorizontal: SPACING.sm,
+        paddingVertical: 6,
+        borderRadius: RADIUS.sm,
+    },
+    quickBuyText: {
         fontSize: FONTS.sizes.xs,
         fontFamily: FONTS.bold,
+        color: '#000',
     },
-    actions: {
-        flexDirection: 'row',
-        gap: SPACING.xs,
-    },
-    actionButton: {
-        padding: 4,
+    disabledText: {
+        opacity: 0.5,
     },
 });
