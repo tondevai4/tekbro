@@ -5,6 +5,7 @@ import { AchievementGrid } from './AchievementGrid';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 import { X, Trophy, Search } from 'lucide-react-native';
 import { BlurView } from 'expo-blur';
+import { AchievementCardSkeleton } from './LoadingSkeleton';
 
 interface Props {
     achievements: Achievement[];
@@ -49,7 +50,15 @@ export function AchievementsSection({ achievements }: Props) {
                 </TouchableOpacity>
             </View>
 
-            <AchievementGrid achievements={achievements} />
+            {achievements.length === 0 ? (
+                <View style={{ flexDirection: 'row', gap: SPACING.md, paddingHorizontal: SPACING.lg }}>
+                    <AchievementCardSkeleton />
+                    <AchievementCardSkeleton />
+                    <AchievementCardSkeleton />
+                </View>
+            ) : (
+                <AchievementGrid achievements={achievements} />
+            )}
 
             <Modal
                 visible={modalVisible}

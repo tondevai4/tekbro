@@ -83,7 +83,6 @@ export const NewsToast: React.FC<NewsToastProps> = ({ news, onDismiss, onPress }
             style={[
                 styles.container,
                 {
-                {
                     top: Math.max(insets.top, 20) + 10,
                     transform: [{ translateY: slideAnim }],
                     opacity: opacityAnim

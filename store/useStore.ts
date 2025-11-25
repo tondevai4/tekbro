@@ -1,11 +1,46 @@
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AppState as AppStateType, LeaderboardEntry, PortfolioItem, NewsEvent } from '../types';
 import * as Haptics from 'expo-haptics';
 import { Alert } from 'react-native';
 import { ACHIEVEMENT_CATALOG } from '../constants/achievements';
 import { generateDailyChallenge } from '../utils/challenges';
+import { analytics } from '../utils/analytics';
+
+// Error-safe AsyncStorage wrapper
+const asyncStorageWrapper: StateStorage = {
+    getItem: async (name: string): Promise<string | null> => {
+        try {
+            const value = await AsyncStorage.getItem(name);
+            return value;
+        } catch (error) {
+            console.error('AsyncStorage getItem error:', error);
+            // Gracefully degrade - return null to use default state
+            return null;
+        }
+    },
+    setItem: async (name: string, value: string): Promise<void> => {
+        try {
+            await AsyncStorage.setItem(name, value);
+        } catch (error) {
+            console.error('AsyncStorage setItem error:', error);
+            // Show user-friendly error toast
+            Alert.alert(
+                'Storage Error',
+                'Unable to save your progress. Your data may not persist after closing the app.',
+                [{ text: 'OK', style: 'default' }]
+            );
+        }
+    },
+    removeItem: async (name: string): Promise<void> => {
+        try {
+            await AsyncStorage.removeItem(name);
+        } catch (error) {
+            console.error('AsyncStorage removeItem error:', error);
+        }
+    },
+};
 
 interface AppState extends AppStateType {
     setActiveNews: (news: NewsEvent | null) => void;
@@ -136,6 +171,7 @@ export const useStore = create<AppState>()(
                 get().addXp(10);
                 get().updateChallengeProgress('volume', 1);
                 get().checkAndUnlockAchievements();
+                analytics.trackTrade('BUY', symbol, quantity, price);
             },
 
             sellStock: (symbol, quantity, price) => {
@@ -184,6 +220,7 @@ export const useStore = create<AppState>()(
                 }
                 get().updateChallengeProgress('volume', 1);
                 get().checkAndUnlockAchievements();
+                analytics.trackTrade('SELL', symbol, quantity, price);
             },
 
             updateStockPrice: (symbol, newPrice) => {
@@ -224,6 +261,7 @@ export const useStore = create<AppState>()(
                         [{ text: 'Nice!', style: 'default' }]
                     );
                     get().addXp(achievement.xpReward);
+                    analytics.trackAchievementUnlocked(achievement.id, achievement.tier, achievement.xpReward);
                 }
             },
 
@@ -317,6 +355,7 @@ export const useStore = create<AppState>()(
                             `${dailyChallenge.title}\n+${xp} XP${cash ? ` +$${cash}` : ''}`,
                             [{ text: 'Nice!', style: 'default' }]
                         );
+                        analytics.trackChallengeCompleted(dailyChallenge.type, { xp, cash });
                     }
                 }
             },
@@ -329,6 +368,7 @@ export const useStore = create<AppState>()(
                 if (lastLoginDate !== today || !dailyChallenge) {
                     const newChallenge = generateDailyChallenge();
                     set({ dailyChallenge: newChallenge });
+                    analytics.trackChallengeStarted(newChallenge.type);
                 }
 
                 if (lastLoginDate === today) {
@@ -431,7 +471,18 @@ export const useStore = create<AppState>()(
         }),
         {
             name: 'paper-trader-storage',
-            storage: createJSONStorage(() => AsyncStorage),
+            storage: createJSONStorage(() => asyncStorageWrapper),
+            // Handle rehydration errors gracefully
+            onRehydrateStorage: () => (state, error) => {
+                if (error) {
+                    console.error('Error rehydrating state:', error);
+                    Alert.alert(
+                        'Data Recovery Error',
+                        'Unable to restore your previous session. Starting fresh.',
+                        [{ text: 'OK', style: 'default' }]
+                    );
+                }
+            },
         }
     )
 );

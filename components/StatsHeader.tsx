@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS, FONTS, SPACING } from '../constants/theme';
 
@@ -9,8 +9,8 @@ interface Props {
 }
 
 export function StatsHeader({ xp, level, loginStreak }: Props) {
-    const nextLevelXp = level * 1000;
-    const progress = (xp / nextLevelXp) * 100;
+    const nextLevelXp = useMemo(() => level * 1000, [level]);
+    const progress = useMemo(() => (xp / nextLevelXp) * 100, [xp, nextLevelXp]);
 
     return (
         <View style={styles.container}>

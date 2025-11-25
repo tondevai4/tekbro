@@ -8,7 +8,9 @@ import { useMarketEngine } from '../hooks/useMarketEngine';
 import { useStore } from '../store/useStore';
 import { NewsToast } from '../components/NewsToast';
 import { LevelUpModal } from '../components/LevelUpModal';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { COLORS } from '../constants/theme';
+import { analytics } from '../utils/analytics';
 
 export default function RootLayout() {
     const router = useRouter();
@@ -32,6 +34,10 @@ export default function RootLayout() {
     useEffect(() => {
         async function checkOnboarding() {
             try {
+                // Initialize analytics
+                analytics.init();
+                analytics.trackAppOpened();
+
                 // Initialize gamification
                 checkLoginStreak();
                 syncAchievements();
@@ -43,6 +49,7 @@ export default function RootLayout() {
                 }
             } catch (error) {
                 console.error('Error checking onboarding:', error);
+                analytics.trackError(error as Error, { context: 'onboarding_check' });
             } finally {
                 setIsReady(true);
             }
@@ -56,38 +63,40 @@ export default function RootLayout() {
     }
 
     return (
-        <SafeAreaProvider>
-            <StatusBar style="light" backgroundColor={COLORS.bg} />
-            <View style={{ flex: 1 }}>
-                <Stack
-                    screenOptions={{
-                        headerShown: false,
-                        contentStyle: { backgroundColor: COLORS.bg },
-                        animation: 'slide_from_right',
-                    }}
-                >
-                    <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                    <Stack.Screen
-                        name="stock/[id]"
-                        options={{
-                            presentation: 'modal',
-                            headerShown: false
+        <ErrorBoundary>
+            <SafeAreaProvider>
+                <StatusBar style="light" backgroundColor={COLORS.bg} />
+                <View style={{ flex: 1 }}>
+                    <Stack
+                        screenOptions={{
+                            headerShown: false,
+                            contentStyle: { backgroundColor: COLORS.bg },
+                            animation: 'slide_from_right',
                         }}
+                    >
+                        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+                        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                        <Stack.Screen
+                            name="stock/[id]"
+                            options={{
+                                presentation: 'modal',
+                                headerShown: false
+                            }}
+                        />
+                    </Stack>
+                    {activeNews && (
+                        <NewsToast
+                            news={activeNews}
+                            onDismiss={() => setActiveNews(null)}
+                        />
+                    )}
+                    <LevelUpModal
+                        visible={showLevelUp}
+                        level={level}
+                        onClose={() => setShowLevelUp(false)}
                     />
-                </Stack>
-                {activeNews && (
-                    <NewsToast
-                        news={activeNews}
-                        onDismiss={() => setActiveNews(null)}
-                    />
-                )}
-                <LevelUpModal
-                    visible={showLevelUp}
-                    level={level}
-                    onClose={() => setShowLevelUp(false)}
-                />
-            </View>
-        </SafeAreaProvider>
+                </View>
+            </SafeAreaProvider>
+        </ErrorBoundary>
     );
 }

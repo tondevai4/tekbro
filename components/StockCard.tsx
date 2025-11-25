@@ -24,7 +24,7 @@ const SECTOR_EMOJI: Record<string, string> = {
     'Index': '📊'
 };
 
-export const StockCard: React.FC<StockCardProps> = ({ stock }) => {
+const StockCardComponent: React.FC<StockCardProps> = ({ stock }) => {
     const router = useRouter();
     const { toggleWatchlist, watchlist } = useStore();
     const isWatched = watchlist.includes(stock.symbol);
@@ -91,6 +91,15 @@ export const StockCard: React.FC<StockCardProps> = ({ stock }) => {
         </TouchableOpacity>
     );
 };
+
+// Memoize to prevent unnecessary re-renders when stock price hasn't changed
+export const StockCard = React.memo(StockCardComponent, (prevProps, nextProps) => {
+    return (
+        prevProps.stock.symbol === nextProps.stock.symbol &&
+        prevProps.stock.price === nextProps.stock.price &&
+        prevProps.stock.history.length === nextProps.stock.history.length
+    );
+});
 
 const styles = StyleSheet.create({
     card: {
