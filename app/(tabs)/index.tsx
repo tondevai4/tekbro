@@ -109,25 +109,6 @@ export default function PortfolioScreen() {
                             <Text style={styles.emptySubtext}>Visit the Market tab to start trading!</Text>
                         </View>
                     }
-                    ListFooterComponent={
-                        <TouchableOpacity
-                            style={styles.debugButton}
-                            onPress={() => {
-                                const { setActiveNews } = useStore.getState();
-                                setActiveNews({
-                                    id: 'test-news',
-                                    headline: '🚨 TEST NEWS ALERT: Market Crashing!',
-                                    impact: -0.05,
-                                    severity: 'HIGH',
-                                    timestamp: Date.now(),
-                                    type: 'MARKET',
-                                    suggestion: 'SELL'
-                                });
-                            }}
-                        >
-                            <Text style={styles.debugText}>🛠️ Force Test News</Text>
-                        </TouchableOpacity>
-                    }
                 />
             </View>
         </SafeAreaView>

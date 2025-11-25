@@ -112,14 +112,6 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
                 scrollEventThrottle={16}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.listContent}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={handleRefresh}
-                        tintColor={COLORS.accent}
-                        colors={[COLORS.accent]}
-                    />
-                }
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
                         <Text style={styles.emptyIcon}>📭</Text>
