@@ -1,13 +1,14 @@
-import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Modal, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useStore } from '../../store/useStore';
 import { COLORS, FONTS, SPACING, RADIUS } from '../../constants/theme';
-import { TrendingUp, TrendingDown, Star, X, ChevronLeft, Building2, Activity } from 'lucide-react-native';
+import { TrendingUp, TrendingDown, Star, ChevronLeft, Building2, Activity } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import ConfettiCannon from 'react-native-confetti-cannon';
 import { playSound } from '../../utils/sounds';
+import { TradeModal } from '../../components/TradeModal';
 
 export default function StockDetailScreen() {
     const { id } = useLocalSearchParams();
@@ -48,16 +49,8 @@ export default function StockDetailScreen() {
         : 0;
 
     const isPositive = priceChange >= 0;
-    const totalCost = parseFloat(quantity || '0') * stock.price;
-    const canAfford = tradeType === 'BUY' ? cash >= totalCost : ownedShares >= parseFloat(quantity || '0');
 
-    const handleTrade = async () => {
-        const qty = parseInt(quantity);
-        if (isNaN(qty) || qty <= 0) {
-            Alert.alert('Invalid Quantity', 'Please enter a valid number');
-            return;
-        }
-
+    const handleTrade = async (qty: number) => {
         try {
             if (tradeType === 'BUY') {
                 if (cash < qty * stock.price) {
@@ -89,7 +82,6 @@ export default function StockDetailScreen() {
             }
 
             setShowModal(false);
-            setQuantity('');
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             Alert.alert('Success', `${tradeType === 'BUY' ? 'Bought' : 'Sold'} ${qty} shares of ${stock.symbol}`);
         } catch (error) {
@@ -210,53 +202,16 @@ export default function StockDetailScreen() {
             </View>
 
             {/* Trade Modal */}
-            <Modal visible={showModal} transparent animationType="slide" onRequestClose={() => setShowModal(false)}>
-                <KeyboardAvoidingView
-                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-                    style={styles.modalOverlay}
-                >
-                    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-                        <View style={styles.modalContent}>
-                            <View style={styles.modalHeader}>
-                                <Text style={styles.modalTitle}>{tradeType} {stock.symbol}</Text>
-                                <TouchableOpacity onPress={() => setShowModal(false)}>
-                                    <X size={24} color={COLORS.textMuted} />
-                                </TouchableOpacity>
-                            </View>
-
-                            <View style={styles.inputSection}>
-                                <Text style={styles.inputLabel}>Quantity</Text>
-                                <TextInput
-                                    style={styles.input}
-                                    value={quantity}
-                                    onChangeText={setQuantity}
-                                    keyboardType="numeric"
-                                    placeholder="Enter shares"
-                                    placeholderTextColor={COLORS.textMuted}
-                                    autoFocus
-                                />
-                                <View style={styles.costRow}>
-                                    <Text style={styles.costLabel}>Total Cost:</Text>
-                                    <Text style={styles.costValue}>£{totalCost.toFixed(2)}</Text>
-                                </View>
-                                {tradeType === 'BUY' && (
-                                    <Text style={styles.availableText}>Available: £{cash.toFixed(2)}</Text>
-                                )}
-                            </View>
-
-                            <TouchableOpacity
-                                style={[styles.confirmButton, !canAfford && styles.disabledButton]}
-                                onPress={handleTrade}
-                                disabled={!canAfford}
-                            >
-                                <Text style={styles.confirmButtonText}>
-                                    {tradeType === 'BUY' ? 'Confirm Purchase' : 'Confirm Sale'}
-                                </Text>
-                            </TouchableOpacity>
-                        </View>
-                    </TouchableWithoutFeedback>
-                </KeyboardAvoidingView>
-            </Modal>
+            <TradeModal
+                visible={showModal}
+                onClose={() => setShowModal(false)}
+                tradeType={tradeType}
+                symbol={stock.symbol}
+                price={stock.price}
+                cash={cash}
+                ownedShares={ownedShares}
+                onConfirm={handleTrade}
+            />
         </SafeAreaView>
     );
 }
