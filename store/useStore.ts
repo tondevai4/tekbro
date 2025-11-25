@@ -1,11 +1,11 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AppState as AppStateType, LeaderboardEntry, PortfolioItem, NewsEvent } from '../types';
+import { AppState as AppStateType, LeaderboardEntry, NewsEvent, DailyChallenges } from '../types';
 import * as Haptics from 'expo-haptics';
 import { Alert } from 'react-native';
 import { ACHIEVEMENT_CATALOG } from '../constants/achievements';
-import { generateDailyChallenge } from '../utils/challenges';
+import { generateDailyChallenges, shouldResetChallenges } from '../utils/dailyChallenges';
 import { analytics } from '../utils/analytics';
 
 // Error-safe AsyncStorage wrapper
@@ -16,7 +16,6 @@ const asyncStorageWrapper: StateStorage = {
             return value;
         } catch (error) {
             console.error('AsyncStorage getItem error:', error);
-            // Gracefully degrade - return null to use default state
             return null;
         }
     },
@@ -25,7 +24,6 @@ const asyncStorageWrapper: StateStorage = {
             await AsyncStorage.setItem(name, value);
         } catch (error) {
             console.error('AsyncStorage setItem error:', error);
-            // Show user-friendly error toast
             Alert.alert(
                 'Storage Error',
                 'Unable to save your progress. Your data may not persist after closing the app.',
@@ -58,7 +56,7 @@ const INITIAL_CASH = 10000;
 export const useStore = create<AppState>()(
     persist(
         (set, get) => ({
-            // ... existing initial state ...
+            // Initial state
             cash: INITIAL_CASH,
             holdings: {},
             stocks: [],
@@ -78,7 +76,7 @@ export const useStore = create<AppState>()(
             level: 1,
             username: 'Trader',
             avatar: 'default',
-            dailyChallenge: null,
+            dailyChallenges: null, // Changed to plural
             loginStreak: 0,
             lastLoginDate: '',
             highScore: 0,
@@ -88,10 +86,10 @@ export const useStore = create<AppState>()(
             activeNews: null,
             marketSentiment: 0.15,
 
+            // Actions
             setActiveNews: (news) => set({ activeNews: news }),
             setMarketSentiment: (sentiment) => set({ marketSentiment: sentiment }),
 
-            // ... existing actions ...
             toggleWatchlist: (symbol) => {
                 const { watchlist } = get();
                 const exists = watchlist.includes(symbol);
@@ -133,7 +131,7 @@ export const useStore = create<AppState>()(
             setProfile: (username, avatar) => set({ username, avatar }),
 
             buyStock: (symbol, quantity, price) => {
-                const { cash, holdings, trades } = get();
+                const { cash, holdings, trades, stocks } = get();
                 const totalCost = quantity * price;
 
                 if (cash < totalCost) {
@@ -169,7 +167,14 @@ export const useStore = create<AppState>()(
                 });
 
                 get().addXp(10);
+
+                // Update challenges - track volume and sector trades
                 get().updateChallengeProgress('volume', 1);
+                const stock = stocks.find(s => s.symbol === symbol);
+                if (stock?.sector === 'Tech') {
+                    get().updateChallengeProgress('sector', 1);
+                }
+
                 get().checkAndUnlockAchievements();
                 analytics.trackTrade('BUY', symbol, quantity, price);
             },
@@ -296,8 +301,6 @@ export const useStore = create<AppState>()(
                 const updatedAchievements = achievements.map((ach) => {
                     let progress = ach.progress;
 
-                    // Simple mapping for common achievement types
-                    // Ideally this should be more robust or based on achievement 'type'
                     if (['first_trade', 'getting_started', 'day_trader', 'active_investor', 'wall_street_wolf', 'market_maker'].includes(ach.id)) {
                         progress = trades.length;
                     }
@@ -326,49 +329,71 @@ export const useStore = create<AppState>()(
                 });
             },
 
+            // Updated for 5-challenge system
             updateChallengeProgress: (type, amount) => {
-                const { dailyChallenge } = get();
-                if (!dailyChallenge || dailyChallenge.completed) return;
+                const { dailyChallenges } = get();
+                if (!dailyChallenges) return;
 
-                if (dailyChallenge.type === type) {
-                    const newProgress = dailyChallenge.progress + amount;
-                    const isComplete = newProgress >= dailyChallenge.target;
+                const updatedChallenges = dailyChallenges.challenges.map(challenge => {
+                    if (challenge.type === type && !challenge.completed) {
+                        const newProgress = challenge.progress + amount;
+                        const isComplete = newProgress >= challenge.target;
 
-                    set({
-                        dailyChallenge: {
-                            ...dailyChallenge,
-                            progress: Math.min(newProgress, dailyChallenge.target),
+                        if (isComplete && !challenge.completed) {
+                            // Award XP for completion
+                            get().addXp(challenge.xpReward);
+
+                            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                            Alert.alert(
+                                '🎉 Challenge Complete!',
+                                `${challenge.title}\n+${challenge.xpReward} XP`,
+                                [{ text: 'Nice!', style: 'default' }]
+                            );
+                            analytics.trackChallengeCompleted(challenge.type, { xp: challenge.xpReward });
+                        }
+
+                        return {
+                            ...challenge,
+                            progress: Math.min(newProgress, challenge.target),
                             completed: isComplete
-                        }
-                    });
-
-                    if (isComplete) {
-                        const { xp, cash } = dailyChallenge.reward;
-                        get().addXp(xp);
-                        if (cash) {
-                            set((state) => ({ cash: state.cash + cash }));
-                        }
-
-                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                        Alert.alert(
-                            '🎉 Challenge Complete!',
-                            `${dailyChallenge.title}\n+${xp} XP${cash ? ` +$${cash}` : ''}`,
-                            [{ text: 'Nice!', style: 'default' }]
-                        );
-                        analytics.trackChallengeCompleted(dailyChallenge.type, { xp, cash });
+                        };
                     }
-                }
+                    return challenge;
+                });
+
+                set({
+                    dailyChallenges: {
+                        ...dailyChallenges,
+                        challenges: updatedChallenges
+                    }
+                });
             },
 
             checkLoginStreak: () => {
                 const today = new Date().toISOString().split('T')[0];
-                const { lastLoginDate, loginStreak, dailyChallenge } = get();
+                const { lastLoginDate, loginStreak, dailyChallenges } = get();
 
-                // Generate new challenge if none exists or it's a new day
-                if (lastLoginDate !== today || !dailyChallenge) {
-                    const newChallenge = generateDailyChallenge();
-                    set({ dailyChallenge: newChallenge });
-                    analytics.trackChallengeStarted(newChallenge.type);
+                // Generate new challenges if needed
+                if (shouldResetChallenges(dailyChallenges?.date || null)) {
+                    const newChallenges = generateDailyChallenges();
+
+                    // Auto-complete the streak challenge
+                    const updatedChallenges: DailyChallenges = {
+                        ...newChallenges,
+                        challenges: newChallenges.challenges.map(c =>
+                            c.type === 'streak' ? { ...c, progress: 1, completed: true } : c
+                        )
+                    };
+
+                    set({ dailyChallenges: updatedChallenges });
+
+                    // Award XP for streak challenge
+                    const streakChallenge = updatedChallenges.challenges.find(c => c.type === 'streak');
+                    if (streakChallenge) {
+                        get().addXp(streakChallenge.xpReward);
+                    }
+
+                    analytics.trackChallengeStarted('daily_challenges_generated');
                 }
 
                 if (lastLoginDate === today) {
@@ -418,7 +443,6 @@ export const useStore = create<AppState>()(
                     .sort((a, b) => b.equity - a.equity)
                     .slice(0, 10);
 
-                // Update Equity History (keep last 50 points)
                 const newHistory = [...equityHistory, { timestamp: Date.now(), value: equity }].slice(-50);
 
                 set({
@@ -434,18 +458,14 @@ export const useStore = create<AppState>()(
                     const existing = achievements.find(a => a.id === catalogItem.id);
                     return {
                         ...catalogItem,
-                        // Keep progress and unlocked status if exists
                         progress: existing ? existing.progress : 0,
                         unlocked: existing ? existing.unlocked : false,
-                        // Ensure defaults
                         target: catalogItem.target ?? 0,
                         xpReward: catalogItem.xpReward ?? 0,
                         tier: catalogItem.tier ?? 'bronze'
                     };
                 });
 
-                // Only update if count is different or we want to force sync
-                // For now, always sync to ensure new descriptions/titles are applied
                 set({ achievements: syncedAchievements });
             },
 
@@ -463,7 +483,7 @@ export const useStore = create<AppState>()(
                     })),
                     watchlist: [],
                     alerts: [],
-                    dailyChallenge: null,
+                    dailyChallenges: null,
                     xp: 0,
                     level: 1,
                 });
@@ -472,7 +492,6 @@ export const useStore = create<AppState>()(
         {
             name: 'paper-trader-storage',
             storage: createJSONStorage(() => asyncStorageWrapper),
-            // Handle rehydration errors gracefully
             onRehydrateStorage: () => (state, error) => {
                 if (error) {
                     console.error('Error rehydrating state:', error);

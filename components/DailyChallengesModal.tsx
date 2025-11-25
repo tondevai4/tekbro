@@ -11,13 +11,11 @@ interface DailyChallengesModalProps {
 }
 
 export const DailyChallengesModal: React.FC<DailyChallengesModalProps> = ({ visible, onClose }) => {
-    const { dailyChallenge } = useStore();
+    const { dailyChallenges } = useStore();
 
-    if (!dailyChallenge) {
+    if (!dailyChallenges) {
         return null;
     }
-
-    const progressPercent = Math.min((dailyChallenge.progress / dailyChallenge.target) * 100, 100);
 
     return (
         <Modal
@@ -33,48 +31,55 @@ export const DailyChallengesModal: React.FC<DailyChallengesModalProps> = ({ visi
                 >
                     {/* Header */}
                     <View style={styles.header}>
-                        <Text style={styles.title}>Daily Challenge</Text>
+                        <Text style={styles.title}>Daily Challenges</Text>
                         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
                             <X size={24} color={COLORS.text} />
                         </TouchableOpacity>
                     </View>
 
                     <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-                        {/* Single Challenge Card */}
-                        <LinearGradient
-                            colors={dailyChallenge.completed ? ['#0D4D4D', '#1A5F5F'] : ['#1A1F2E', '#252B3A']}
-                            style={styles.challengeCard}
-                        >
-                            <View style={styles.cardHeader}>
-                                <Text style={styles.icon}>{dailyChallenge.title.includes('trade') ? '📊' : '💰'}</Text>
-                                <View style={styles.cardInfo}>
-                                    <Text style={styles.challengeTitle}>{dailyChallenge.title}</Text>
-                                    <Text style={styles.challengeDescription}>{dailyChallenge.description}</Text>
-                                </View>
-                                <View style={styles.xpBadge}>
-                                    <Text style={styles.xpText}>{dailyChallenge.reward.xp} XP</Text>
-                                </View>
-                            </View>
+                        {/* Render all 5 challenges */}
+                        {dailyChallenges.challenges.map((challenge, index) => {
+                            const progressPercent = Math.min((challenge.progress / challenge.target) * 100, 100);
 
-                            {/* Progress Bar */}
-                            <View style={styles.progressSection}>
-                                <View style={styles.progressBar}>
-                                    <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
-                                </View>
-                                <Text style={styles.progressText}>
-                                    {dailyChallenge.progress} / {dailyChallenge.target}
-                                </Text>
-                            </View>
+                            return (
+                                <LinearGradient
+                                    key={challenge.id}
+                                    colors={challenge.completed ? ['#0D4D4D', '#1A5F5F'] : ['#1A1F2E', '#252B3A']}
+                                    style={styles.challengeCard}
+                                >
+                                    <View style={styles.cardHeader}>
+                                        <Text style={styles.icon}>{challenge.icon}</Text>
+                                        <View style={styles.cardInfo}>
+                                            <Text style={styles.challengeTitle}>{challenge.title}</Text>
+                                            <Text style={styles.challengeDescription}>{challenge.description}</Text>
+                                        </View>
+                                        <View style={styles.xpBadge}>
+                                            <Text style={styles.xpText}>{challenge.xpReward} XP</Text>
+                                        </View>
+                                    </View>
 
-                            {dailyChallenge.completed && (
-                                <View style={styles.completedBadge}>
-                                    <Text style={styles.completedText}>✓ Completed!</Text>
-                                </View>
-                            )}
-                        </LinearGradient>
+                                    {/* Progress Bar */}
+                                    <View style={styles.progressSection}>
+                                        <View style={styles.progressBar}>
+                                            <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+                                        </View>
+                                        <Text style={styles.progressText}>
+                                            {challenge.progress} / {challenge.target}
+                                        </Text>
+                                    </View>
+
+                                    {challenge.completed && (
+                                        <View style={styles.completedBadge}>
+                                            <Text style={styles.completedText}>✓ Completed!</Text>
+                                        </View>
+                                    )}
+                                </LinearGradient>
+                            );
+                        })}
 
                         <Text style={styles.note}>
-                            Complete challenges to earn XP and level up faster!
+                            Complete challenges to earn XP and level up faster! Challenges reset daily.
                         </Text>
                     </ScrollView>
                 </LinearGradient>
@@ -194,5 +199,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: SPACING.xl,
         paddingHorizontal: SPACING.lg,
+        marginBottom: SPACING.xl,
     },
 });
