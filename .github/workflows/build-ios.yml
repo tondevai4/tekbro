@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: |
           npm ci --legacy-peer-deps
-          npm install -g eas-cli expo-cli
+          npm install -g eas-cli
 
       - name: Prebuild Expo
         run: npx expo prebuild --platform ios --clean
