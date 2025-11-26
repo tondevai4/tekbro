@@ -1,80 +1,198 @@
-# 🦅 PaperTrader Elite: Engineering a High-Frequency Market Simulator
+# 📈 PaperTrader: The Ultimate Stock Market Simulation Game
 
-> **A journey from a naive MVP to a performant, 60fps financial simulation engine built with React Native.**
+> **A high-performance, gamified stock trading simulator built with React Native and Expo. Practice trading stocks and crypto, complete daily challenges, unlock achievements, and climb the global leaderboard—all in a beautifully designed dark-mode interface.**
 
 ---
 
-## 📖 The Engineering Narrative
+## ✨ Features
 
-### Phase 1: The "Naive" Implementation (v0.1)
-The initial prototype was built on a simple premise: `setInterval` updates state, and React renders it.
-*   **Architecture**: A single `useEffect` hook updating a local state array of 20+ stocks every 1000ms.
-*   **The Bottleneck**: This naive approach triggered a full React Reconciliation cycle for the entire list on every tick. On the JS thread, this O(n) operation, combined with heavy UI components (gradients, blur views), caused the JS frame rate to drop below 15fps. The app felt "rubbish"—sluggish, unresponsive, and prone to freezing.
-*   **The Lesson**: React's virtual DOM diffing is fast, but not fast enough for high-frequency data streams when coupled with complex UI rendering.
+### 🎮 Core Gameplay
+- **Real-Time Market Simulation**: Watch 90+ stocks and 10 cryptocurrencies update dynamically with realistic price movements using Geometric Brownian Motion
+- **Paper Trading**: Start with £1,000,000 virtual cash and build your portfolio without risking real money
+- **Crypto Trading**: Trade Bitcoin, Ethereum, and other major cryptocurrencies with 5x-20x leverage
+- **Breaking News System**: React to market-moving news events that impact stock prices in real-time
+- **Historical Charts**: View detailed price history and performance metrics for every asset
 
-### Phase 2: The "Gumption" Engine (Architectural Overhaul)
-To solve the performance crisis, we decoupled the **Simulation Layer** from the **Presentation Layer**.
-*   **The Math**: We moved from `Math.random()` to a **Geometric Brownian Motion** model with Mean Reversion.
-    *   **Box-Muller Transform**: Used to generate normally distributed random numbers (Gaussian distribution) for realistic "fat tail" market events.
-    *   **Drift & Volatility**: Each stock now has a persistent "drift" vector (trend) that evolves over time, creating organic market movements rather than white noise.
-*   **State Management**: Migrated to **Zustand**. Unlike Context API, Zustand allows for granular selectors (`useStore(state => state.stocks)`), preventing unnecessary re-renders in components that don't depend on the changing data.
+### 🏆 Gamification
+- **56 Achievements**: Unlock achievements across 8 categories (Trading Volume, Profit Goals, Equity Milestones, Diversification, Win Streaks, Login Streaks, Crypto, and Special)
+- **XP & Leveling System**: Earn experience points from trades, achievements, and challenges
+- **Daily Challenges**: Complete 3 fresh challenges every day (Hard Mode difficulty: 10%+ returns, 24hr time limits)
+- **Login Streaks**: Build momentum with daily login rewards
+- **Global Leaderboard**: Compete with mock elite traders (top 10 display)
 
-### Phase 3: Optimization & The "Freezing" Snag
-Even with the new engine, we hit a critical snag: **The "Infinite Loop" Freeze**.
-*   **The Issue**: The `MiniChart` component was re-calculating its SVG path on every render, and `MarketScreen` was re-mounting list items unnecessarily.
-*   **The Solution**:
-    1.  **Throttling**: We implemented a 3000ms throttle on the UI update loop while keeping the internal simulation tick faster. This decouples the "Game Time" from "Render Time".
-    2.  **Referential Stability**: Wrapped `MiniChart` and `StockCard` in `React.memo`. Crucially, we memoized the `chartData` transformation to ensure prop equality checks passed, preventing the "Maximum update depth exceeded" error.
-    3.  **FlashList Implementation**: Replaced `FlatList` with Shopify's `FlashList`. By recycling views (recyclerlistview architecture), we achieved consistent 60fps scrolling even while the market data updates in the background.
+### 📊 Portfolio Management
+- **Real-Time Metrics**: Track your total equity, cash balance, P/L, and win rate
+- **Diversification Tracking**: Monitor your portfolio composition by sector
+- **Performance Analytics**: View detailed stats including total trades, biggest win/loss, and more
+- **Advanced Indicators**: RSI, Moving Averages, and Bollinger Bands on stock detail pages
+
+### 🎨 Premium UI/UX
+- **Glassmorphism Design**: Modern dark-mode interface with blur effects and vibrant gradients
+- **Smooth Animations**: Powered by React Native Reanimated for 60fps performance
+- **Haptic Feedback**: Tactile responses for key interactions
+- **Confetti Celebrations**: Visual rewards for achievements and level-ups
+- **Sound Effects**: Audio feedback for trades and notifications (subtle, premium quality)
 
 ---
 
 ## 🛠️ Technical Architecture
 
-### The Tech Stack
-*   **Core**: React Native (Expo SDK 52), TypeScript
-*   **State**: Zustand (Global Store), React Query (Server State - *Planned*)
-*   **Performance**: Shopify FlashList, React Native Reanimated 3
-*   **UI System**: Custom Glassmorphism Design System (BlurView, LinearGradient)
-*   **Persistence**: AsyncStorage with a custom hydration layer
+### Tech Stack
+- **Framework**: React Native 0.81 (Expo SDK 54)
+- **Language**: TypeScript
+- **State Management**: Zustand (global store)
+- **Navigation**: Expo Router (file-based routing)
+- **UI Performance**: Shopify FlashList, React Native Reanimated
+- **Styling**: Custom design system with glassmorphism effects
+- **Storage**: AsyncStorage for game state persistence
+- **Testing**: Jest + React Native Testing Library
 
-### Key Components
+### Performance Optimizations
+- **Geometric Brownian Motion**: Realistic market simulation using Box-Muller transform for normally distributed price movements
+- **Throttled Updates**: Market ticks every 3s to maintain 60fps UI performance
+- **Memoization**: Strategic use of `React.memo` and `useMemo` to prevent unnecessary re-renders
+- **FlashList**: Recycled list views for smooth scrolling with thousands of items
+- **Granular State Selectors**: Zustand selectors prevent component re-renders when unrelated state changes
 
-#### 1. The Market Engine Hook (`useMarketEngine`)
-A custom hook that acts as the "heartbeat" of the application.
-```typescript
-// Simplified Logic
-useEffect(() => {
-  const interval = setInterval(() => {
-    // 1. Calculate Drift (Mean Reversion)
-    // 2. Apply Volatility (Box-Muller RNG)
-    // 3. Batch Update Zustand Store
-    updateMarketPrices(batchUpdates); 
-  }, 3000);
-}, []);
+### Architecture Highlights
+- **Decoupled Simulation Layer**: Market engine runs independently from UI rendering
+- **Hook-Based Architecture**: `useMarketEngine`, `useCryptoEngine`, and `useToast` for clean separation of concerns
+- **Error Boundaries**: Graceful error handling with user-friendly fallback UI
+- **Analytics Layer**: Structured event tracking system (currently console-only, ready for integration)
+
+---
+
+## 📱 App Structure
+
+```
+PaperTrader/
+├── app/                    # Expo Router pages
+│   ├── (tabs)/            # Bottom tab navigation
+│   │   ├── index.tsx      # Dashboard
+│   │   ├── market.tsx     # Stock market browser
+│   │   ├── crypto.tsx     # Crypto trading
+│   │   ├── history.tsx    # Trade history
+│   │   └── leaderboard.tsx # Leaderboard
+│   ├── stock/[id].tsx     # Stock detail modal
+│   ├── onboarding.tsx     # First-time user experience
+│   └── _layout.tsx        # Root navigation wrapper
+├── components/            # 38 reusable UI components
+├── constants/             # Data catalogs & theme system
+├── hooks/                 # Custom React hooks
+├── store/                 # Zustand state stores
+├── utils/                 # Business logic & helpers
+└── types.ts               # TypeScript definitions
 ```
 
-#### 2. The Daily Challenge System
-A persistent gamification layer that survives app restarts.
-*   **Problem**: Challenges would reset or disappear on reload.
-*   **Fix**: Implemented a `checkLoginStreak` initialization routine in the `RootLayout` that hydrates state from `AsyncStorage` before the UI mounts, ensuring data consistency across sessions.
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 20+
+- Expo CLI
+- iOS Simulator (Mac) or Android Emulator
+
+### Installation
+```bash
+npm install
+npx expo start
+```
+
+### Building for iOS
+We use GitHub Actions to build unsigned IPAs that can be sideloaded via AltStore:
+```bash
+# See README_GITHUB_ACTIONS.md for detailed instructions
+```
 
 ---
 
-## 🚀 Performance Metrics
-*   **Startup Time**: < 1.5s (Expo Go)
-*   **Frame Rate**: Consistent 60fps on high-end devices during market updates.
-*   **Memory Footprint**: Optimized by memoizing heavy SVG chart components.
+## 🎯 Game Modes
+
+### Standard Trading
+- Buy and sell stocks with your virtual cash
+- Track your portfolio performance in real-time
+- React to breaking news events
+
+### Crypto Trading
+- Access a separate crypto wallet with £100,000 starting balance
+- Trade with leverage (5x-20x) for amplified gains or losses
+- Transfer profits back to your main account (one-way transfer)
+
+### Daily Challenges
+Three fresh challenges appear every 24 hours:
+- **Profit Target**: Make £X profit in a single trade
+- **Volume Challenge**: Trade £X total volume
+- **Win Streak**: Complete X profitable trades in a row
+
+Success unlocks XP and cash rewards!
 
 ---
 
-## � Future Engineering Roadmap
-*   **WebSocket Integration**: Replace the local simulation with real-time WebSocket feeds (e.g., Binance API) for a "Live Mode".
-*   **WASM Module**: Move the heavy math (Box-Muller, Drift calculations) to a C++ module via JSI for near-native performance.
-*   **Testing**: Expand unit test coverage for the `NewsEngine` logic (currently using Jest).
+## 📊 Data & Content
+
+- **90 Stocks**: Curated selection across Technology, Finance, Healthcare, Consumer, Energy, and more
+- **10 Cryptocurrencies**: Bitcoin, Ethereum, Solana, and other major coins
+- **56 Achievements**: Bronze → Silver → Gold progression
+- **Dynamic News**: 50+ news templates that trigger based on market conditions
+- **Leaderboard**: 10 mock elite traders with realistic portfolios
 
 ---
 
-## ✍️ Author
-**Tonde** (with AI Pair Programmer Antigravity)
-*Built with a focus on performance, architecture, and "Gumption".*
+## 🔧 Configuration
+
+Key settings in `app.json`:
+- **Bundle ID**: `com.papertrader.app`
+- **iOS Deployment Target**: 15.1
+- **New Architecture**: Disabled for stability
+- **Plugins**: Expo Router, Expo Build Properties
+
+---
+
+## 🧪 Testing
+
+```bash
+npm test              # Run all tests
+npm run test:watch    # Watch mode
+npm run test:coverage # Coverage report
+```
+
+Current test coverage focuses on:
+- Daily challenge generation
+- Achievement tracking logic
+- Market simulation accuracy
+
+---
+
+## 📝 License & Privacy
+
+- **Privacy**: No user tracking, no data collection, no ads
+- **Storage**: All game data stored locally on device
+- **Offline Play**: Fully functional without internet connection
+
+---
+
+## 👨‍💻 Author
+
+**Tonde**  
+*Built with AI Pair Programmer Antigravity*
+
+---
+
+## 🗺️ Future Roadmap
+
+- [ ] Real-time WebSocket integration (live market data)
+- [ ] Multiplayer challenges
+- [ ] Options trading simulator
+- [ ] Custom watchlists
+- [ ] Portfolio analytics dashboard
+- [ ] Social features (share trades, compete with friends)
+- [ ] WASM module for advanced market simulation
+- [ ] Sentry/Firebase integration for crash reporting
+
+---
+
+**Version**: 1.0.0  
+**Last Updated**: November 2025  
+**Expo SDK**: 54.0.25  
+**React Native**: 0.81.5
