@@ -18,15 +18,17 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm ci
+          npm install -g eas-cli expo-cli
 
       - name: Prebuild Expo
-        run: npx expo prebuild --platform ios --no-interactive
+        run: npx expo prebuild --platform ios --no-interactive --clean
 
       - name: Install CocoaPods
         run: |
           cd ios
-          pod install
+          pod install --repo-update
 
       - name: Build iOS Archive (Unsigned)
         run: |

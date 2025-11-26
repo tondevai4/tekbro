@@ -106,6 +106,23 @@ export const TransferModal: React.FC<TransferModalProps> = ({ visible, onClose, 
                         ))}
                     </View>
 
+                    {/* Max Button Row */}
+                    <View style={styles.maxButtonContainer}>
+                        <TouchableOpacity
+                            style={styles.maxButton}
+                            onPress={() => {
+                                if (type === 'DEPOSIT') {
+                                    setAmount(cash.toString());
+                                } else {
+                                    setAmount(cryptoWallet.toString());
+                                }
+                                Haptics.selectionAsync();
+                            }}
+                        >
+                            <Text style={styles.maxButtonText}>MAX</Text>
+                        </TouchableOpacity>
+                    </View>
+
                     <TouchableOpacity
                         style={[
                             styles.confirmButton,
@@ -179,7 +196,24 @@ const styles = StyleSheet.create({
     quickAmounts: {
         flexDirection: 'row',
         justifyContent: 'space-between',
+        marginBottom: SPACING.md,
+    },
+    maxButtonContainer: {
+        alignItems: 'flex-end',
         marginBottom: SPACING.xl,
+    },
+    maxButton: {
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: RADIUS.sm,
+        borderWidth: 1,
+        borderColor: COLORS.accent,
+    },
+    maxButtonText: {
+        color: COLORS.accent,
+        fontSize: 12,
+        fontFamily: FONTS.bold,
     },
     quickButton: {
         backgroundColor: COLORS.bg,
