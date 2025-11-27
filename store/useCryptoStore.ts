@@ -208,9 +208,21 @@ export const useCryptoStore = create<CryptoStore>()(
                 }
 
                 const newQuantity = currentHolding.quantity - quantity;
-                const profit = (price - currentHolding.averageCost) * quantity;
-                const actualProfit = profit * currentHolding.leverage; // Leverage amplifies P&L
-                const totalValue = (quantity * price) / currentHolding.leverage; // Return initial margin + profit
+
+                // FIXED LEVERAGE MATH:
+                // Calculate raw P&L (what you'd make without leverage)
+                const costBasis = currentHolding.averageCost * quantity;
+                const saleValue = price * quantity;
+                const rawProfit = saleValue - costBasis;
+
+                // Apply leverage to P&L ONLY
+                const leveragedProfit = rawProfit * currentHolding.leverage;
+
+                // Initial margin was: (avgCost * quantity) / leverage
+                const initialMargin = costBasis / currentHolding.leverage;
+
+                // Total return = margin back + leveraged profit
+                const totalReturn = initialMargin + leveragedProfit;
 
                 const newHoldings = { ...cryptoHoldings };
                 if (newQuantity === 0) {
@@ -223,7 +235,7 @@ export const useCryptoStore = create<CryptoStore>()(
                 }
 
                 set({
-                    cryptoWallet: cryptoWallet + totalValue + actualProfit,
+                    cryptoWallet: cryptoWallet + totalReturn,
                     cryptoHoldings: newHoldings,
                     cryptoTrades: [
                         {
@@ -233,7 +245,7 @@ export const useCryptoStore = create<CryptoStore>()(
                             quantity,
                             price,
                             timestamp: Date.now(),
-                            pnl: actualProfit
+                            pnl: leveragedProfit
                         },
                         ...cryptoTrades
                     ]
@@ -241,15 +253,15 @@ export const useCryptoStore = create<CryptoStore>()(
 
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 addXp(10);
-                if (actualProfit > 0) {
+                if (leveragedProfit > 0) {
                     addXp(15);
-                    updateChallengeProgress('profit', actualProfit);
+                    updateChallengeProgress('profit', leveragedProfit);
                 } else {
                     addXp(5);
                 }
                 updateChallengeProgress('volume', 1);
                 checkAndUnlockAchievements();
-                analytics.trackEvent('crypto_sell', { symbol, quantity, price, profit: actualProfit });
+                analytics.trackEvent('crypto_sell', { symbol, quantity, price, profit: leveragedProfit });
             },
 
             // ⚠️ CHECK FOR LIQUIDATIONS

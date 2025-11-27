@@ -23,13 +23,9 @@ const CryptoCardComponent: React.FC<CryptoCardProps> = ({ crypto }) => {
     // Animation for press effect
     const scaleAnim = useRef(new Animated.Value(1)).current;
 
-    // Calculate price change
-    const priceChange = crypto.history.length >= 2
-        ? crypto.price - crypto.history[crypto.history.length - 2].value
-        : 0;
-    const changePercent = crypto.history.length >= 2
-        ? (priceChange / crypto.history[crypto.history.length - 2].value) * 100
-        : 0;
+    // Calculate price change from SESSION OPEN (not basePrice!)
+    const priceChange = crypto.price - crypto.openPrice;
+    const changePercent = (priceChange / crypto.openPrice) * 100;
 
     const isPositive = priceChange >= 0;
 

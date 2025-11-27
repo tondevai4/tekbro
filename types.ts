@@ -167,6 +167,7 @@ export interface Crypto {
     name: string;
     price: number;
     basePrice: number; // Initial price for reset
+    openPrice: number; // Session opening price for % calculation
     history: PricePoint[];
     volatility: number; // 0.03-0.10 (3%-10% per tick)
     logo?: any; // PNG image require

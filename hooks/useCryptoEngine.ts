@@ -76,6 +76,7 @@ export const useCryptoEngine = () => {
 
     // 🌊 MOMENTUM SYSTEM: Crypto trends tend to persist longer
     const momentumRef = useRef<Record<string, number>>({});
+    const trendHistoryRef = useRef<Record<string, number[]>>({});
 
     // Initialize cryptos and momentum
     useEffect(() => {
@@ -87,15 +88,27 @@ export const useCryptoEngine = () => {
             const initializedCryptos = initializeCryptos();
             setCryptos(initializedCryptos);
 
-            // Initialize random momentum
+            // Initialize random momentum and trend history
             initializedCryptos.forEach(crypto => {
                 momentumRef.current[crypto.symbol] = (Math.random() - 0.5) * 0.005;
+                trendHistoryRef.current[crypto.symbol] = [];
             });
         } else {
-            // Hydrate momentum
+            // Hydrate momentum and trend history
             currentCryptos.forEach(crypto => {
                 if (momentumRef.current[crypto.symbol] === undefined) {
                     momentumRef.current[crypto.symbol] = (Math.random() - 0.5) * 0.005;
+                }
+                if (trendHistoryRef.current[crypto.symbol] === undefined) {
+                    trendHistoryRef.current[crypto.symbol] = [];
+                }
+                // Initialize openPrice if missing (for session percentage calc)
+                if (!crypto.openPrice || crypto.openPrice === 0) {
+                    useCryptoStore.setState(state => ({
+                        cryptos: state.cryptos.map(c =>
+                            c.symbol === crypto.symbol ? { ...c, openPrice: c.price } : c
+                        )
+                    }));
                 }
             });
         }
@@ -143,7 +156,16 @@ export const useCryptoEngine = () => {
                     moodBias = -0.003; // -0.3% per tick bias (Fear is stronger)
                 }
 
-                const percentChange = currentMomentum + noise + moodBias;
+                // 🎢 TREND MOMENTUM: Reduce rubber-banding
+                const trendHistory = trendHistoryRef.current[crypto.symbol] || [];
+                const recentTrend = trendHistory.slice(-3).reduce((sum, t) => sum + t, 0) / Math.max(trendHistory.length, 1);
+                const momentumBias = recentTrend * 0.25; // 25% of recent trend persists
+
+                const percentChange = currentMomentum + noise + moodBias + momentumBias;
+
+                // Store trend for next iteration
+                trendHistory.push(percentChange);
+                trendHistoryRef.current[crypto.symbol] = trendHistory.slice(-5); // Keep last 5 ticks
 
                 // 4. Update Price
                 let newPrice = crypto.price * (1 + percentChange);
