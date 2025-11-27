@@ -60,6 +60,7 @@ interface MarketMoodStore {
         averageVolatility: number;
         cashPercentage: number;
     }) => void;
+    applyNewsSentiment: (impact: number, type: 'BULLISH' | 'BEARISH') => void;
     tick: () => void;
     checkCycleTransition: (avgReturn: number) => void;
     reset: () => void;
@@ -181,6 +182,21 @@ export const useMarketMoodStore = create<MarketMoodStore>()(
 
                 // Clamp and update
                 const clampedIndex = Math.max(0, Math.min(100, newIndex));
+                set({ fearGreedIndex: clampedIndex });
+            },
+
+            applyNewsSentiment: (impact: number, type: 'BULLISH' | 'BEARISH') => {
+                const currentIndex = get().fearGreedIndex;
+
+                // Convert impact (-1 to 1) to F&G shift
+                // Bullish news pushes toward greed, bearish toward fear
+                const shift = type === 'BULLISH'
+                    ? impact * 15  // Max +15 for major bullish news
+                    : impact * -15; // Max -15 for major bearish news
+
+                const newIndex = currentIndex + shift;
+                const clampedIndex = Math.max(0, Math.min(100, newIndex));
+
                 set({ fearGreedIndex: clampedIndex });
             },
 

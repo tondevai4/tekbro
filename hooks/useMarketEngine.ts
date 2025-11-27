@@ -214,6 +214,12 @@ export const useMarketEngine = () => {
                     lastNewsTimeRef.current = Date.now();
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
+                    // 📰 NEWS SHIFTS MARKET SENTIMENT!
+                    useMarketMoodStore.getState().applyNewsSentiment(
+                        Math.abs(news.impact),
+                        news.impact > 0 ? 'BULLISH' : 'BEARISH'
+                    );
+
                     // 🔥 NEWS IMPACTS DRIFT (The "Kick")
                     // Instead of just jumping the price, we permanently shift the trend (Drift)
                     // This creates a lasting narrative effect.

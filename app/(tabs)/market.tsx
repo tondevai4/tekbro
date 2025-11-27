@@ -47,316 +47,295 @@ export default function MarketScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [sectorFilter, setSectorFilter] = useState<SectorFilter>('All');
     const [portfolioModalVisible, setPortfolioModalVisible] = useState(false);
-    const [fearGreedModalVisible, setFearGreedModalVisible] = useState(false);
-
-    const sectors: SectorFilter[] = ['All', 'Tech', 'Finance', 'Healthcare', 'Consumer', 'Energy', 'Real Estate'];
-
-    // Calculate portfolio metrics
-    const portfolioValue = useMemo(() => {
-        const holdingsValue = Object.values(holdings).reduce((total, holding) => {
-            const stock = stocks.find(s => s.symbol === holding.symbol);
-            return total + (stock ? holding.quantity * stock.price : 0);
-        }, 0);
-        return holdingsValue + cash;
-    }, [holdings, stocks, cash]);
-
-    const portfolioPnL = useMemo(() => {
-        return Object.values(holdings).reduce((total, holding) => {
-            const stock = stocks.find(s => s.symbol === holding.symbol);
-            if (!stock) return total;
-            const currentValue = holding.quantity * stock.price;
-            const costBasis = holding.quantity * holding.averageCost;
-            return total + (currentValue - costBasis);
-        }, 0);
+    const currentValue = holding.quantity * stock.price;
+    const costBasis = holding.quantity * holding.averageCost;
+    return total + (currentValue - costBasis);
+}, 0);
     }, [holdings, stocks]);
 
-    const portfolioPnLPercent = useMemo(() => {
-        const invested = portfolioValue - portfolioPnL;
-        return invested > 0 ? (portfolioPnL / invested) * 100 : 0;
-    }, [portfolioValue, portfolioPnL]);
+const portfolioPnLPercent = useMemo(() => {
+    const invested = portfolioValue - portfolioPnL;
+    return invested > 0 ? (portfolioPnL / invested) * 100 : 0;
+}, [portfolioValue, portfolioPnL]);
 
-    const filteredStocks = useMemo(() => {
-        let result = stocks;
+const filteredStocks = useMemo(() => {
+    let result = stocks;
 
-        if (sectorFilter !== 'All') {
-            result = result.filter(s => s.sector === sectorFilter);
-        }
+    if (sectorFilter !== 'All') {
+        result = result.filter(s => s.sector === sectorFilter);
+    }
 
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            result = result.filter(s =>
-                s.symbol.toLowerCase().includes(query) ||
-                s.name.toLowerCase().includes(query)
-            );
-        }
+    if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        result = result.filter(s =>
+            s.symbol.toLowerCase().includes(query) ||
+            s.name.toLowerCase().includes(query)
+        );
+    }
 
-        return result;
-    }, [stocks, searchQuery, sectorFilter]);
+    return result;
+}, [stocks, searchQuery, sectorFilter]);
 
-    const handleSectorFilter = (sector: SectorFilter) => {
-        setSectorFilter(sector);
-        Haptics.selectionAsync();
-    };
+const handleSectorFilter = (sector: SectorFilter) => {
+    setSectorFilter(sector);
+    Haptics.selectionAsync();
+};
 
-    const getCyclePhaseColor = () => {
-        switch (marketCyclePhase) {
-            case 'early': return '#00FF88';
-            case 'mid': return '#00CCFF';
-            case 'late': return '#FFD700';
-            case 'recession': return '#FF4444';
-            default: return '#888';
-        }
-    };
+const getCyclePhaseColor = () => {
+    switch (marketCyclePhase) {
+        case 'early': return '#00FF88';
+        case 'mid': return '#00CCFF';
+        case 'late': return '#FFD700';
+        case 'recession': return '#FF4444';
+        default: return '#888';
+    }
+};
 
-    const getCyclePhaseLabel = () => {
-        switch (marketCyclePhase) {
-            case 'early': return 'Early Cycle';
-            case 'mid': return 'Mid Cycle';
-            case 'late': return 'Late Cycle';
-            case 'recession': return 'Recession';
-            default: return 'Unknown';
-        }
-    };
+const getCyclePhaseLabel = () => {
+    switch (marketCyclePhase) {
+        case 'early': return 'Early Cycle';
+        case 'mid': return 'Mid Cycle';
+        case 'late': return 'Late Cycle';
+        case 'recession': return 'Recession';
+        default: return 'Unknown';
+    }
+};
 
-    const renderGlassCard = (children: React.ReactNode, style?: any) => (
-        <LinearGradient
-            colors={['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.04)']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={[styles.glassCard, style]}
-        >
-            {children}
-        </LinearGradient>
-    );
+const renderGlassCard = (children: React.ReactNode, style?: any) => (
+    <LinearGradient
+        colors={['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.04)']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.glassCard, style]}
+    >
+        {children}
+    </LinearGradient>
+);
 
-    const renderHeader = () => (
-        <View style={styles.headerContainer}>
-            {/* Title + Market Indicators */}
-            <View style={styles.topBar}>
-                <View>
-                    <Text style={styles.headerTitle}>Market</Text>
-                    <Text style={styles.headerSubtitle}>Stock Exchange</Text>
-                </View>
-
-                <View style={styles.indicators}>
-                    {/* Cycle Phase Badge */}
-                    <LinearGradient
-                        colors={[`${getCyclePhaseColor()}22`, `${getCyclePhaseColor()}11`]}
-                        style={styles.cycleBadge}
-                    >
-                        <Activity size={10} color={getCyclePhaseColor()} />
-                        <Text style={[styles.cycleText, { color: getCyclePhaseColor() }]}>
-                            {getCyclePhaseLabel().toUpperCase()}
-                        </Text>
-                    </LinearGradient>
-
-                    {/* Fear &  Greed */}
-                    <TouchableOpacity onPress={() => setFearGreedModalVisible(true)}>
-                        <LinearGradient
-                            colors={[`${getMoodColor()}33`, `${getMoodColor()}11`]}
-                            style={styles.moodBadge}
-                        >
-                            <Lightning size={12} color={getMoodColor()} fill={getMoodColor()} />
-                            <Text style={[styles.moodValue, { color: getMoodColor() }]}>
-                                {Math.round(fearGreedIndex)}
-                            </Text>
-                        </LinearGradient>
-                    </TouchableOpacity>
-                </View>
+const renderHeader = () => (
+    <View style={styles.headerContainer}>
+        {/* Title + Market Indicators */}
+        <View style={styles.topBar}>
+            <View>
+                <Text style={styles.headerTitle}>Market</Text>
+                <Text style={styles.headerSubtitle}>Stock Exchange</Text>
             </View>
 
-            {/* Portfolio Glass Card */}
-            <TouchableOpacity onPress={() => {
-                setPortfolioModalVisible(true);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            }}>
-                {renderGlassCard(
-                    <View style={styles.portfolioContent}>
-                        <View style={styles.portfolioHeader}>
-                            <View style={styles.briefcaseIconContainer}>
-                                <LinearGradient
-                                    colors={['#00D9FF', '#0099FF']}
-                                    style={styles.briefcaseIconBg}
-                                >
-                                    <Briefcase size={20} color="#FFF" />
-                                </LinearGradient>
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.portfolioLabel}>TOTAL PORTFOLIO</Text>
-                                <Text style={styles.portfolioValue}>
-                                    £{portfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </Text>
-                            </View>
-                        </View>
+            <View style={styles.indicators}>
+                {/* Cycle Phase Badge */}
+                <LinearGradient
+                    colors={[`${getCyclePhaseColor()}22`, `${getCyclePhaseColor()}11`]}
+                    style={styles.cycleBadge}
+                >
+                    <Activity size={10} color={getCyclePhaseColor()} />
+                    <Text style={[styles.cycleText, { color: getCyclePhaseColor() }]}>
+                        {getCyclePhaseLabel().toUpperCase()}
+                    </Text>
+                </LinearGradient>
 
-                        <View style={styles.pnlContainer}>
-                            <View style={styles.pnlRow}>
-                                {portfolioPnL >= 0 ? (
-                                    <ArrowUpRight size={16} color="#00FF88" />
-                                ) : (
-                                    <ArrowDownRight size={16} color="#FF4444" />
-                                )}
-                                <Text style={[styles.pnlText, { color: portfolioPnL >= 0 ? '#00FF88' : '#FF4444' }]}>
-                                    {portfolioPnL >= 0 ? '+' : ''}£{Math.abs(portfolioPnL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </Text>
-                                <Text style={[styles.pnlPercent, { color: portfolioPnL >= 0 ? '#00FF88' : '#FF4444' }]}>
-                                    ({portfolioPnL >= 0 ? '+' : ''}{portfolioPnLPercent.toFixed(2)}%)
-                                </Text>
-                            </View>
-                        </View>
-                    </View>,
-                    { marginBottom: SPACING.lg }
-                )}
-            </TouchableOpacity>
-
-            {/* Holdings Carousel */}
-            {Object.keys(holdings).length > 0 && (
-                <View style={styles.holdingsSection}>
-                    <Text style={styles.sectionTitle}>YOUR POSITIONS</Text>
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.holdingsList}
+                {/* Fear &  Greed */}
+                <TouchableOpacity onPress={() => setFearGreedModalVisible(true)}>
+                    <LinearGradient
+                        colors={[`${getMoodColor()}33`, `${getMoodColor()}11`]}
+                        style={styles.moodBadge}
                     >
-                        {stocks
-                            .filter(s => holdings[s.symbol]?.quantity > 0)
-                            .map(stock => {
-                                const holding = holdings[stock.symbol];
-                                const pnl = (stock.price - holding.averageCost) * holding.quantity;
-                                const pnlPercent = ((stock.price - holding.averageCost) / holding.averageCost) * 100;
-                                const SectorIcon = SECTOR_ICONS[stock.sector as keyof typeof SECTOR_ICONS] || Cpu;
-                                const sectorColors = SECTOR_COLORS[stock.sector as keyof typeof SECTOR_COLORS] || ['#888', '#666'];
+                        <Lightning size={12} color={getMoodColor()} fill={getMoodColor()} />
+                        <Text style={[styles.moodValue, { color: getMoodColor() }]}>
+                            {Math.round(fearGreedIndex)}
+                        </Text>
+                    </LinearGradient>
+                </TouchableOpacity>
+            </View>
+        </View>
 
-                                return (
-                                    <TouchableOpacity
-                                        key={stock.symbol}
-                                        onPress={() => router.push(`/stock/${stock.symbol}`)}
-                                    >
-                                        {renderGlassCard(
-                                            <View style={styles.holdingCard}>
-                                                <View style={styles.holdingHeader}>
-                                                    <LinearGradient
-                                                        colors={sectorColors}
-                                                        style={styles.sectorIconBg}
-                                                    >
-                                                        <SectorIcon size={14} color="#FFF" />
-                                                    </LinearGradient>
-                                                    <Text style={styles.holdingSymbol}>{stock.symbol}</Text>
-                                                </View>
-                                                <Text style={styles.holdingValue}>
-                                                    £{(holding.quantity * stock.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                </Text>
-                                                <View style={styles.holdingPnl}>
-                                                    {pnl >= 0 ? (
-                                                        <TrendingUp size={12} color="#00FF88" />
-                                                    ) : (
-                                                        <TrendingDown size={12} color="#FF4444" />
-                                                    )}
-                                                    <Text style={[styles.holdingPnlText, { color: pnl >= 0 ? '#00FF88' : '#FF4444' }]}>
-                                                        {pnlPercent.toFixed(1)}%
-                                                    </Text>
-                                                </View>
-                                            </View>,
-                                            { marginRight: SPACING.md, width: 140 }
-                                        )}
-                                    </TouchableOpacity>
-                                );
-                            })
-                        }
-                    </ScrollView>
-                </View>
-            )}
-
-            {/* Sector Filter Pills */}
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.sectorFilters}
-            >
-                {sectors.map(sector => {
-                    const isActive = sector === sectorFilter;
-                    const SectorIcon = sector === 'All' ? Activity : SECTOR_ICONS[sector as keyof typeof SECTOR_ICONS];
-                    const sectorColors = sector === 'All' ? ['#666', '#444'] : SECTOR_COLORS[sector as keyof typeof SECTOR_COLORS];
-
-                    return (
-                        <TouchableOpacity
-                            key={sector}
-                            onPress={() => handleSectorFilter(sector)}
-                        >
-                            <LinearGradient
-                                colors={isActive ? sectorColors : ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.04)']}
-                                style={[
-                                    styles.sectorPill,
-                                    isActive && { borderColor: sectorColors[0] }
-                                ]}
-                            >
-                                {SectorIcon && <SectorIcon size={14} color={isActive ? '#FFF' : 'rgba(255,255,255,0.5)'} />}
-                                <Text style={[styles.sectorPillText, { color: isActive ? '#FFF' : 'rgba(255,255,255,0.5)' }]}>
-                                    {sector}
-                                </Text>
-                            </LinearGradient>
-                        </TouchableOpacity>
-                    );
-                })}
-            </ScrollView>
-
-            {/* Search Bar */}
+        {/* Portfolio Glass Card */}
+        <TouchableOpacity onPress={() => {
+            setPortfolioModalVisible(true);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        }}>
             {renderGlassCard(
-                <View style={styles.searchContent}>
-                    <Search size={18} color="rgba(255,255,255,0.5)" />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Search stocks..."
-                        placeholderTextColor="rgba(255,255,255,0.3)"
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                    />
+                <View style={styles.portfolioContent}>
+                    <View style={styles.portfolioHeader}>
+                        <View style={styles.briefcaseIconContainer}>
+                            <LinearGradient
+                                colors={['#00D9FF', '#0099FF']}
+                                style={styles.briefcaseIconBg}
+                            >
+                                <Briefcase size={20} color="#FFF" />
+                            </LinearGradient>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.portfolioLabel}>TOTAL PORTFOLIO</Text>
+                            <Text style={styles.portfolioValue}>
+                                £{portfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.pnlContainer}>
+                        <View style={styles.pnlRow}>
+                            {portfolioPnL >= 0 ? (
+                                <ArrowUpRight size={16} color="#00FF88" />
+                            ) : (
+                                <ArrowDownRight size={16} color="#FF4444" />
+                            )}
+                            <Text style={[styles.pnlText, { color: portfolioPnL >= 0 ? '#00FF88' : '#FF4444' }]}>
+                                {portfolioPnL >= 0 ? '+' : ''}£{Math.abs(portfolioPnL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </Text>
+                            <Text style={[styles.pnlPercent, { color: portfolioPnL >= 0 ? '#00FF88' : '#FF4444' }]}>
+                                ({portfolioPnL >= 0 ? '+' : ''}{portfolioPnLPercent.toFixed(2)}%)
+                            </Text>
+                        </View>
+                    </View>
                 </View>,
                 { marginBottom: SPACING.lg }
             )}
+        </TouchableOpacity>
 
-            <Text style={styles.sectionTitle}>
-                {sectorFilter === 'All' ? 'ALL STOCKS' : `${sectorFilter.toUpperCase()} SECTOR`}
-            </Text>
-        </View>
-    );
+        {/* Holdings Carousel */}
+        {Object.keys(holdings).length > 0 && (
+            <View style={styles.holdingsSection}>
+                <Text style={styles.sectionTitle}>YOUR POSITIONS</Text>
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.holdingsList}
+                    removeClippedSubviews={true}
+                    scrollEventThrottle={16}
+                >
+                    {holdingsData.map(item => {
+                        const SectorIcon = SECTOR_ICONS[item.sector as keyof typeof SECTOR_ICONS] || Cpu;
+                        const sectorColors = SECTOR_COLORS[item.sector as keyof typeof SECTOR_COLORS] || ['#888', '#666'];
 
-    const FlashListAny = FlashList as any;
+                        return (
+                            <TouchableOpacity
+                                key={item.symbol}
+                                onPress={() => router.push(`/stock/${item.symbol}`)}
+                            >
+                                {renderGlassCard(
+                                    <View style={styles.holdingCard}>
+                                        <View style={styles.holdingHeader}>
+                                            <LinearGradient
+                                                colors={sectorColors}
+                                                style={styles.sectorIconBg}
+                                            >
+                                                <SectorIcon size={14} color="#FFF" />
+                                            </LinearGradient>
+                                            <Text style={styles.holdingSymbol}>{item.symbol}</Text>
+                                        </View>
+                                        <Text style={styles.holdingValue}>
+                                            £{(item.holding.quantity * item.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </Text>
+                                        <View style={styles.holdingPnl}>
+                                            {item.pnl >= 0 ? (
+                                                <TrendingUp size={12} color="#00FF88" />
+                                            ) : (
+                                                <TrendingDown size={12} color="#FF4444" />
+                                            )}
+                                            <Text style={[styles.holdingPnlText, { color: item.pnl >= 0 ? '#00FF88' : '#FF4444' }]}>
+                                                {item.pnlPercent.toFixed(1)}%
+                                            </Text>
+                                        </View>
+                                    </View>,
+                                    { marginRight: SPACING.md, width: 140 }
+                                )}
+                            </TouchableOpacity>
+                        );
+                    })}
+                </ScrollView>
+            </View>
+        )}
 
-    return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-            {/* Animated Background */}
-            <LinearGradient
-                colors={['#0F0A1A', '#1A0F2E', '#0F0A1A']}
-                style={StyleSheet.absoluteFill}
-            />
+        {/* Sector Filter Pills */}
+        <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.sectorFilters}
+        >
+            {sectors.map(sector => {
+                const isActive = sector === sectorFilter;
+                const SectorIcon = sector === 'All' ? Activity : SECTOR_ICONS[sector as keyof typeof SECTOR_ICONS];
+                const sectorColors = sector === 'All' ? ['#666', '#444'] : SECTOR_COLORS[sector as keyof typeof SECTOR_COLORS];
 
-            <FlashListAny
-                data={filteredStocks}
-                keyExtractor={(item: any) => item.symbol}
-                renderItem={({ item }: { item: any }) => <StockCard stock={item} />}
-                ListHeaderComponent={renderHeader}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
-                estimatedItemSize={140}
-            />
+                return (
+                    <TouchableOpacity
+                        key={sector}
+                        onPress={() => handleSectorFilter(sector)}
+                    >
+                        <LinearGradient
+                            colors={isActive ? sectorColors : ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.04)']}
+                            style={[
+                                styles.sectorPill,
+                                isActive && { borderColor: sectorColors[0] }
+                            ]}
+                        >
+                            {SectorIcon && <SectorIcon size={14} color={isActive ? '#FFF' : 'rgba(255,255,255,0.5)'} />}
+                            <Text style={[styles.sectorPillText, { color: isActive ? '#FFF' : 'rgba(255,255,255,0.5)' }]}>
+                                {sector}
+                            </Text>
+                        </LinearGradient>
+                    </TouchableOpacity>
+                );
+            })}
+        </ScrollView>
 
-            <PortfolioDetailModal
-                visible={portfolioModalVisible}
-                onClose={() => setPortfolioModalVisible(false)}
-                type="stocks"
-            />
+        {/* Search Bar */}
+        {renderGlassCard(
+            <View style={styles.searchContent}>
+                <Search size={18} color="rgba(255,255,255,0.5)" />
+                <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search stocks..."
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                />
+            </View>,
+            { marginBottom: SPACING.lg }
+        )}
 
-            <FearGreedModal
-                visible={fearGreedModalVisible}
-                onClose={() => setFearGreedModalVisible(false)}
-                fearGreedIndex={fearGreedIndex}
-                getMoodColor={getMoodColor}
-                getMoodLabel={getMoodLabel}
-                marketCyclePhase={marketCyclePhase}
-            />
-        </SafeAreaView>
-    );
+        <Text style={styles.sectionTitle}>
+            {sectorFilter === 'All' ? 'ALL STOCKS' : `${sectorFilter.toUpperCase()} SECTOR`}
+        </Text>
+    </View>
+);
+
+const FlashListAny = FlashList as any;
+
+return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+        {/* Animated Background */}
+        <LinearGradient
+            colors={['#0F0A1A', '#1A0F2E', '#0F0A1A']}
+            style={StyleSheet.absoluteFill}
+        />
+
+        <FlashListAny
+            data={filteredStocks}
+            keyExtractor={(item: any) => item.symbol}
+            renderItem={({ item }: { item: any }) => <StockCard stock={item} />}
+            ListHeaderComponent={renderHeader}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            estimatedItemSize={140}
+        />
+
+        <PortfolioDetailModal
+            visible={portfolioModalVisible}
+            onClose={() => setPortfolioModalVisible(false)}
+            type="stocks"
+        />
+
+        <FearGreedModal
+            visible={fearGreedModalVisible}
+            onClose={() => setFearGreedModalVisible(false)}
+            fearGreedIndex={fearGreedIndex}
+            getMoodColor={getMoodColor}
+            getMoodLabel={getMoodLabel}
+            marketCyclePhase={marketCyclePhase}
+        />
+    </SafeAreaView>
+);
 }
 
 const styles = StyleSheet.create({

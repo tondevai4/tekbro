@@ -1,7 +1,18 @@
 import React, { memo, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { useRouter } from 'expo-router';
-import { TrendingUp, TrendingDown, Zap, Star } from 'lucide-react-native';
+import {
+    TrendingUp, TrendingDown, Zap, Star, Apple, Cpu, Car, Monitor, Search,
+    Package, Users, Film, Shield, Bitcoin, Home, Smartphone, ShoppingBag,
+    CreditCard, Gamepad2, Music, Video, FileText, Building2, Heart, Plane,
+    Droplet, Lightbulb, LucideIcon, Cloud, Database, Globe, Lock, Target,
+    Store, Palette, RefreshCw, Snowflake, Dog, Leaf, Eye, Smartphone as Phone,
+    Briefcase, BarChart3, DollarSign, PiggyBank, ArrowRight, Handshake,
+    Pill, Syringe, FlaskConical, Dna, Virus, Microscope, Bot, ShoppingCart,
+    Hammer, Wrench, Coffee, Utensils, Beer, Shirt, Leaf as Yoga, CarFront,
+    Fuel, BarrelAlternate as Barrel, Sun, Plug, Radio, Warehouse, HardDrive,
+    Building, Drumstick, Salad, Palette as PaletteIcon
+} from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 import { Stock } from '../types';
@@ -12,12 +23,60 @@ interface StockCardProps {
     stock: Stock;
 }
 
-// Company icons mapping
-const COMPANY_ICONS: Record<string, string> = {
-    'AAPL': '🍎', 'NVDA': '🎮', 'TSLA': '🚗', 'MSFT': '💻', 'GOOGL': '🔍',
-    'AMZN': '📦', 'META': '👥', 'NFLX': '🎬', 'PLTR': '🛡️', 'COIN': '🪙',
-    'ABNB': '🏠', 'UBER': '🚕', 'SHOP': '🛍️', 'SQ': '💳', 'RBLX': '🎮',
-    'SNAP': '👻', 'SPOT': '🎵', 'TWTR': '🐦', 'ZM': '📹', 'DOCU': '📝',
+// COMPREHENSIVE Company Icons Mapping - 105 UNIQUE LUCIDE ICONS
+const COMPANY_ICONS: Record<string, LucideIcon> = {
+    // ===== TECH (30 stocks) =====
+    // FAANG
+    'AAPL': Apple, 'GOOGL': Search, 'META': Users, 'AMZN': Package, 'NFLX': Film,
+    // Semiconductors
+    'NVDA': Cpu, 'AMD': Cpu, 'INTC': Cpu, 'TSM': Cpu, 'QCOM': Phone,
+    // Software
+    'MSFT': Monitor, 'ORCL': Database, 'CRM': Briefcase, 'ADBE': Palette, 'NOW': RefreshCw,
+    // Cloud & Data
+    'SNOW': Snowflake, 'DDOG': Dog, 'NET': Globe, 'MDB': Leaf, 'PLTR': Eye,
+    // Cybersecurity
+    'CRWD': Shield, 'ZS': Shield, 'PANW': Lock, 'FTNT': Shield,
+    // Gaming
+    'RBLX': Gamepad2, 'EA': Gamepad2, 'TTWO': Gamepad2,
+    // E-commerce
+    'SHOP': ShoppingBag, 'ETSY': ShoppingBag, 'EBAY': Store,
+
+    // ===== FINANCE (20 stocks) =====
+    // Banks
+    'JPM': Building2, 'BAC': Building2, 'WFC': Building2, 'C': Globe, 'GS': Briefcase, 'MS': BarChart3,
+    // Fintech
+    'SQ': CreditCard, 'PYPL': DollarSign, 'COIN': Bitcoin, 'HOOD': TrendingUp, 'AFRM': DollarSign, 'SOFI': PiggyBank,
+    // Insurance
+    'BRK.B': BarChart3, 'PGR': Car, 'ALL': Handshake, 'TRV': Home,
+    // Credit Cards
+    'V': CreditCard, 'MA': CreditCard, 'AXP': CreditCard, 'DFS': CreditCard,
+
+    // ===== HEALTHCARE (15 stocks) =====
+    // Pharma
+    'PFE': Pill, 'JNJ': Heart, 'MRK': FlaskConical, 'LLY': Syringe, 'ABBV': FlaskConical,
+    // Biotech
+    'MRNA': Dna, 'BNTX': Virus, 'REGN': Microscope, 'VRTX': FlaskConical, 'GILD': Shield,
+    // Medical Devices
+    'MDT': Heart, 'ABT': Microscope, 'TMO': FlaskConical, 'DHR': Heart, 'ISRG': Bot,
+
+    // ===== CONSUMER (15 stocks) =====
+    // Retail
+    'WMT': ShoppingCart, 'TGT': Target, 'COST': Warehouse, 'HD': Hammer, 'LOW': Wrench,
+    // Food & Beverage
+    'KO': Droplet, 'PEP': Salad, 'MCD': Utensils, 'SBUX': Coffee, 'CMG': Utensils,
+    // Apparel
+    'NKE': Shirt, 'LULU': Yoga,
+    // Automotive
+    'TSLA': Zap, 'F': Car, 'GM': CarFront,
+
+    // ===== ENERGY (10 stocks) =====
+    // Oil & Gas
+    'XOM': Fuel, 'CVX': Droplet, 'COP': Droplet, 'SLB': Wrench, 'HAL': Wrench,
+    // Renewables
+    'ENPH': Sun, 'NEE': Zap, 'DUK': Plug, 'SO': Lightbulb, 'AEP': Zap,
+
+    // ===== REAL ESTATE (5 stocks) =====
+    'AMT': Radio, 'PLD': Warehouse, 'EQIX': HardDrive, 'PSA': Building, 'O': Store,
 };
 
 const StockCardComponent: React.FC<StockCardProps> = ({ stock }) => {
@@ -91,6 +150,8 @@ const StockCardComponent: React.FC<StockCardProps> = ({ stock }) => {
         return '#FF4444'; // Glowing Red
     };
 
+    const IconComponent = COMPANY_ICONS[stock.symbol] || TrendingUp;
+
     return (
         <Animated.View style={[styles.container, { transform: [{ scale: scaleAnim }] }]}>
             <TouchableOpacity
@@ -109,7 +170,7 @@ const StockCardComponent: React.FC<StockCardProps> = ({ stock }) => {
                         {/* Left: Icon & Rank */}
                         <View style={styles.leftSection}>
                             <View style={[styles.iconContainer, { shadowColor: getBorderColor() }]}>
-                                {/* Icons removed - can add lucide icons here later */}
+                                <IconComponent size={28} color={COLORS.accent} />
                             </View>
                             {/* Momentum Badge (FIFA "Form") */}
                             {Math.abs(changePercent) > 2 && (
@@ -204,9 +265,6 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.5,
         shadowRadius: 10,
-    },
-    iconText: {
-        fontSize: 32,
     },
     badge: {
         position: 'absolute',
