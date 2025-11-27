@@ -9,6 +9,7 @@ import { useCryptoStore } from '../../store/useCryptoStore';
 import { useMarketMoodStore } from '../../store/useMarketMoodStore';
 import { CryptoCard } from '../../components/CryptoCard';
 import { PortfolioDetailModal } from '../../components/PortfolioDetailModal';
+import { FearGreedModal } from '../../components/FearGreedModal';
 import { COLORS, FONTS, SPACING, RADIUS } from '../../constants/theme';
 import { useCryptoEngine } from '../../hooks/useCryptoEngine';
 import { TransferModal } from '../../components/TransferModal';
@@ -29,6 +30,7 @@ export default function CryptoScreen() {
     const [transferType, setTransferType] = useState<'DEPOSIT' | 'WITHDRAW'>('DEPOSIT');
     const [onboardingVisible, setOnboardingVisible] = useState(false);
     const [portfolioModalVisible, setPortfolioModalVisible] = useState(false);
+    const [fearGreedModalVisible, setFearGreedModalVisible] = useState(false);
 
     // Trigger onboarding
     React.useEffect(() => {
@@ -123,15 +125,17 @@ export default function CryptoScreen() {
                     </LinearGradient>
 
                     {/* Fear & Greed */}
-                    <LinearGradient
-                        colors={[`${getMoodColor()}33`, `${getMoodColor()}11`]}
-                        style={styles.moodBadge}
-                    >
-                        <Zap size={12} color={getMoodColor()} fill={getMoodColor()} />
-                        <Text style={[styles.moodValue, { color: getMoodColor() }]}>
-                            {Math.round(fearGreedIndex)}
-                        </Text>
-                    </LinearGradient>
+                    <TouchableOpacity onPress={() => setFearGreedModalVisible(true)}>
+                        <LinearGradient
+                            colors={[`${getMoodColor()}33`, `${getMoodColor()}11`]}
+                            style={styles.moodBadge}
+                        >
+                            <Zap size={12} color={getMoodColor()} fill={getMoodColor()} />
+                            <Text style={[styles.moodValue, { color: getMoodColor() }]}>
+                                {Math.round(fearGreedIndex)}
+                            </Text>
+                        </LinearGradient>
+                    </TouchableOpacity>
                 </View>
             </View>
 
@@ -326,6 +330,15 @@ export default function CryptoScreen() {
                 visible={portfolioModalVisible}
                 onClose={() => setPortfolioModalVisible(false)}
                 type="crypto"
+            />
+
+            <FearGreedModal
+                visible={fearGreedModalVisible}
+                onClose={() => setFearGreedModalVisible(false)}
+                fearGreedIndex={fearGreedIndex}
+                getMoodColor={getMoodColor}
+                getMoodLabel={getMoodLabel}
+                marketCyclePhase={marketCyclePhase}
             />
         </SafeAreaView>
     );

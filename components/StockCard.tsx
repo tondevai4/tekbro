@@ -109,7 +109,7 @@ const StockCardComponent: React.FC<StockCardProps> = ({ stock }) => {
                         {/* Left: Icon & Rank */}
                         <View style={styles.leftSection}>
                             <View style={[styles.iconContainer, { shadowColor: getBorderColor() }]}>
-                                <Text style={styles.iconText}>{COMPANY_ICONS[stock.symbol] || '📈'}</Text>
+                                {/* Icons removed - can add lucide icons here later */}
                             </View>
                             {/* Momentum Badge (FIFA "Form") */}
                             {Math.abs(changePercent) > 2 && (

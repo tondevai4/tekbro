@@ -40,7 +40,7 @@ export default function StockDetailScreen() {
     const ownedValue = ownedShares * stock.price;
     const averageCost = holdings[stock.symbol]?.averageCost || 0;
 
-    // Calculate price change
+    // Calculate price change from SESSION START (must match StockCard!)
     const priceChange = stock.history.length >= 2
         ? stock.price - stock.history[stock.history.length - 2].value
         : 0;

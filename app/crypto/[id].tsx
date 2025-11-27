@@ -36,13 +36,9 @@ export default function CryptoDetailScreen() {
     const ownedQuantity = holding?.quantity || 0;
     const ownedValue = ownedQuantity * crypto.price;
 
-    // Calculate price change
-    const priceChange = crypto.history.length >= 2
-        ? crypto.price - crypto.history[crypto.history.length - 2].value
-        : 0;
-    const changePercent = crypto.history.length >= 2
-        ? (priceChange / crypto.history[crypto.history.length - 2].value) * 100
-        : 0;
+    // Calculate price change from SESSION OPEN (must match CryptoCard!)
+    const priceChange = crypto.price - crypto.openPrice;
+    const changePercent = (priceChange / crypto.openPrice) * 100;
 
     const isPositive = priceChange >= 0;
 
