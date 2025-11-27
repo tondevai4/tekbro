@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import * as Haptics from 'expo-haptics';
 import { useCryptoStore } from '../store/useCryptoStore';
 import { useStore } from '../store/useStore';
-import { useMarketMoodStore } from '../store/useMarketMoodStore';
 import { CRYPTO_CATALOG, initializeCryptos } from '../constants/cryptoData';
 import { generateCryptoNewsEvent } from '../utils/NewsEngine';
 
@@ -71,10 +70,9 @@ export const useCryptoEngine = () => {
     const {
         setCryptos,
         updateCryptoPrices,
-        checkCryptoLiquidation
+        checkCryptoLiquidation,
+        fearGreedIndex
     } = useCryptoStore();
-
-    const { fearGreedIndex } = useMarketMoodStore();
 
     // 🌊 MOMENTUM SYSTEM: Crypto trends tend to persist longer
     const momentumRef = useRef<Record<string, number>>({});
@@ -136,8 +134,8 @@ export const useCryptoEngine = () => {
                 momentumRef.current[crypto.symbol] = currentMomentum;
 
                 // 2. Calculate Volatility (The Chaos)
-                const baseCrypto = CRYPTO_CATALOG.find(c => c.symbol === crypto.symbol);
-                const baseVolatility = baseCrypto?.volatility || 0.05;
+                const cryptoConfig = CRYPTO_CATALOG.find(c => c.symbol === crypto.symbol);
+                const baseVolatility = cryptoConfig?.volatility || 0.05;
 
                 // Scale volatility by Fear & Greed Index
                 // Extreme Fear (Low Index) = High Volatility (Panic selling)
@@ -149,16 +147,13 @@ export const useCryptoEngine = () => {
                 const noise = levyRandom() * volatility;
 
                 // 🐂 BULL RUN / 🐻 BEAR MARKET LOGIC
-                // Crypto AMPLIFIES market mood (2x more sensitive than stocks)
                 // If Greed > 75, bias momentum upwards (Bull Run)
                 // If Fear < 25, bias momentum downwards (Panic Sell)
-                let moodBias = (fearGreedIndex - 50) / 2500; // ±0.02 max (2x stocks)
-
-                // Extra boost during extremes
+                let moodBias = 0;
                 if (fearGreedIndex > 75) {
-                    moodBias += 0.005; // FOMO pump
+                    moodBias = 0.002; // +0.2% per tick bias
                 } else if (fearGreedIndex < 25) {
-                    moodBias -= 0.008; // Capitulation dump
+                    moodBias = -0.003; // -0.3% per tick bias (Fear is stronger)
                 }
 
                 // 🎢 TREND MOMENTUM: Reduce rubber-banding
@@ -175,8 +170,16 @@ export const useCryptoEngine = () => {
                 // 4. Update Price
                 let newPrice = crypto.price * (1 + percentChange);
 
-                // Safety clamps
-                newPrice = Math.max(0.000001, newPrice); // Never zero
+                // STRICT Safety clamps based on basePrice to prevent runaway prices
+                const baseCrypto = CRYPTO_CATALOG.find(c => c.symbol === crypto.symbol);
+                if (baseCrypto) {
+                    const maxPrice = baseCrypto.basePrice * 3; // Max 3x from base
+                    const minPrice = baseCrypto.basePrice * 0.3; // Min 30% of base
+                    newPrice = Math.max(minPrice, Math.min(maxPrice, newPrice));
+                } else {
+                    // Fallback if base not found
+                    newPrice = Math.max(0.000001, newPrice);
+                }
 
                 priceUpdates[crypto.symbol] = newPrice;
 
@@ -190,13 +193,24 @@ export const useCryptoEngine = () => {
             // Check for liquidations immediately after price updates
             checkCryptoLiquidation();
 
-            // Note: Market mood is now updated by stock engine's central mood store
-            // Crypto just uses it, doesn't calculate it
+            // Slowly update Fear & Greed Index based on market performance
+            // If market is up, Greed increases. If down, Fear increases.
+            const currentFearGreed = useCryptoStore.getState().fearGreedIndex;
+            const moodImpact = marketMoodChange * 100; // Scale up small % changes
+            let newFearGreed = currentFearGreed + moodImpact;
+
+            // Mean reversion to 50 (Neutral)
+            newFearGreed = newFearGreed * 0.99 + 50 * 0.01;
+
+            // Clamp 0-100
+            newFearGreed = Math.max(0, Math.min(100, newFearGreed));
+
+            useCryptoStore.setState({ fearGreedIndex: newFearGreed });
 
         }, 2000); // 2 second tick
 
         return () => clearInterval(interval);
-    }, []); // Re-run if fear/greed changes significantly (though ref handles momentum)
+    }, [fearGreedIndex]); // Re-run if fear/greed changes significantly (though ref handles momentum)
 
     // 📰 CRYPTO NEWS SYSTEM
     const lastNewsTimeRef = useRef(Date.now());

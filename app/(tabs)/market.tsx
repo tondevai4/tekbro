@@ -13,6 +13,7 @@ import { useStore } from '../../store/useStore';
 import { useMarketMoodStore } from '../../store/useMarketMoodStore';
 import { StockCard } from '../../components/StockCard';
 import { PortfolioDetailModal } from '../../components/PortfolioDetailModal';
+import { FearGreedModal } from '../../components/FearGreedModal';
 import { COLORS, FONTS, SPACING, RADIUS } from '../../constants/theme';
 import { useMarketEngine } from '../../hooks/useMarketEngine';
 
@@ -46,6 +47,7 @@ export default function MarketScreen() {
     const [searchQuery, setSearchQuery] = useState('');
     const [sectorFilter, setSectorFilter] = useState<SectorFilter>('All');
     const [portfolioModalVisible, setPortfolioModalVisible] = useState(false);
+    const [fearGreedModalVisible, setFearGreedModalVisible] = useState(false);
 
     const sectors: SectorFilter[] = ['All', 'Tech', 'Finance', 'Healthcare', 'Consumer', 'Energy', 'Real Estate'];
 
@@ -148,16 +150,18 @@ export default function MarketScreen() {
                         </Text>
                     </LinearGradient>
 
-                    {/* Fear & Greed */}
-                    <LinearGradient
-                        colors={[`${getMoodColor()}33`, `${getMoodColor()}11`]}
-                        style={styles.moodBadge}
-                    >
-                        <Lightning size={12} color={getMoodColor()} fill={getMoodColor()} />
-                        <Text style={[styles.moodValue, { color: getMoodColor() }]}>
-                            {Math.round(fearGreedIndex)}
-                        </Text>
-                    </LinearGradient>
+                    {/* Fear &  Greed */}
+                    <TouchableOpacity onPress={() => setFearGreedModalVisible(true)}>
+                        <LinearGradient
+                            colors={[`${getMoodColor()}33`, `${getMoodColor()}11`]}
+                            style={styles.moodBadge}
+                        >
+                            <Lightning size={12} color={getMoodColor()} fill={getMoodColor()} />
+                            <Text style={[styles.moodValue, { color: getMoodColor() }]}>
+                                {Math.round(fearGreedIndex)}
+                            </Text>
+                        </LinearGradient>
+                    </TouchableOpacity>
                 </View>
             </View>
 
@@ -341,6 +345,15 @@ export default function MarketScreen() {
                 visible={portfolioModalVisible}
                 onClose={() => setPortfolioModalVisible(false)}
                 type="stocks"
+            />
+
+            <FearGreedModal
+                visible={fearGreedModalVisible}
+                onClose={() => setFearGreedModalVisible(false)}
+                fearGreedIndex={fearGreedIndex}
+                getMoodColor={getMoodColor}
+                getMoodLabel={getMoodLabel}
+                marketCyclePhase={marketCyclePhase}
             />
         </SafeAreaView>
     );
