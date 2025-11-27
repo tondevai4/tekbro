@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { useStore } from '../../store/useStore';
 import { useMarketMoodStore } from '../../store/useMarketMoodStore';
 import { StockCard } from '../../components/StockCard';
+import { PortfolioDetailModal } from '../../components/PortfolioDetailModal';
 import { COLORS, FONTS, SPACING, RADIUS } from '../../constants/theme';
 import { useMarketEngine } from '../../hooks/useMarketEngine';
 
@@ -44,6 +45,7 @@ export default function MarketScreen() {
 
     const [searchQuery, setSearchQuery] = useState('');
     const [sectorFilter, setSectorFilter] = useState<SectorFilter>('All');
+    const [portfolioModalVisible, setPortfolioModalVisible] = useState(false);
 
     const sectors: SectorFilter[] = ['All', 'Tech', 'Finance', 'Healthcare', 'Consumer', 'Energy', 'Real Estate'];
 
@@ -151,7 +153,7 @@ export default function MarketScreen() {
                         colors={[`${getMoodColor()}33`, `${getMoodColor()}11`]}
                         style={styles.moodBadge}
                     >
-                        <Text style={styles.moodLabel}>F&G</Text>
+                        <Lightning size={12} color={getMoodColor()} fill={getMoodColor()} />
                         <Text style={[styles.moodValue, { color: getMoodColor() }]}>
                             {Math.round(fearGreedIndex)}
                         </Text>
@@ -160,43 +162,48 @@ export default function MarketScreen() {
             </View>
 
             {/* Portfolio Glass Card */}
-            {renderGlassCard(
-                <View style={styles.portfolioContent}>
-                    <View style={styles.portfolioHeader}>
-                        <View style={styles.briefcaseIconContainer}>
-                            <LinearGradient
-                                colors={['#00D9FF', '#0099FF']}
-                                style={styles.briefcaseIconBg}
-                            >
-                                <Briefcase size={20} color="#FFF" />
-                            </LinearGradient>
+            <TouchableOpacity onPress={() => {
+                setPortfolioModalVisible(true);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            }}>
+                {renderGlassCard(
+                    <View style={styles.portfolioContent}>
+                        <View style={styles.portfolioHeader}>
+                            <View style={styles.briefcaseIconContainer}>
+                                <LinearGradient
+                                    colors={['#00D9FF', '#0099FF']}
+                                    style={styles.briefcaseIconBg}
+                                >
+                                    <Briefcase size={20} color="#FFF" />
+                                </LinearGradient>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.portfolioLabel}>TOTAL PORTFOLIO</Text>
+                                <Text style={styles.portfolioValue}>
+                                    £{portfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </Text>
+                            </View>
                         </View>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.portfolioLabel}>TOTAL PORTFOLIO</Text>
-                            <Text style={styles.portfolioValue}>
-                                £{portfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </Text>
-                        </View>
-                    </View>
 
-                    <View style={styles.pnlContainer}>
-                        <View style={styles.pnlRow}>
-                            {portfolioPnL >= 0 ? (
-                                <ArrowUpRight size={16} color="#00FF88" />
-                            ) : (
-                                <ArrowDownRight size={16} color="#FF4444" />
-                            )}
-                            <Text style={[styles.pnlText, { color: portfolioPnL >= 0 ? '#00FF88' : '#FF4444' }]}>
-                                {portfolioPnL >= 0 ? '+' : ''}£{Math.abs(portfolioPnL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </Text>
-                            <Text style={[styles.pnlPercent, { color: portfolioPnL >= 0 ? '#00FF88' : '#FF4444' }]}>
-                                ({portfolioPnL >= 0 ? '+' : ''}{portfolioPnLPercent.toFixed(2)}%)
-                            </Text>
+                        <View style={styles.pnlContainer}>
+                            <View style={styles.pnlRow}>
+                                {portfolioPnL >= 0 ? (
+                                    <ArrowUpRight size={16} color="#00FF88" />
+                                ) : (
+                                    <ArrowDownRight size={16} color="#FF4444" />
+                                )}
+                                <Text style={[styles.pnlText, { color: portfolioPnL >= 0 ? '#00FF88' : '#FF4444' }]}>
+                                    {portfolioPnL >= 0 ? '+' : ''}£{Math.abs(portfolioPnL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </Text>
+                                <Text style={[styles.pnlPercent, { color: portfolioPnL >= 0 ? '#00FF88' : '#FF4444' }]}>
+                                    ({portfolioPnL >= 0 ? '+' : ''}{portfolioPnLPercent.toFixed(2)}%)
+                                </Text>
+                            </View>
                         </View>
-                    </View>
-                </View>,
-                { marginBottom: SPACING.lg }
-            )}
+                    </View>,
+                    { marginBottom: SPACING.lg }
+                )}
+            </TouchableOpacity>
 
             {/* Holdings Carousel */}
             {Object.keys(holdings).length > 0 && (
@@ -328,6 +335,12 @@ export default function MarketScreen() {
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
                 estimatedItemSize={140}
+            />
+
+            <PortfolioDetailModal
+                visible={portfolioModalVisible}
+                onClose={() => setPortfolioModalVisible(false)}
+                type="stocks"
             />
         </SafeAreaView>
     );

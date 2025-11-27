@@ -8,6 +8,7 @@ import { useRouter } from 'expo-router';
 import { useCryptoStore } from '../../store/useCryptoStore';
 import { useMarketMoodStore } from '../../store/useMarketMoodStore';
 import { CryptoCard } from '../../components/CryptoCard';
+import { PortfolioDetailModal } from '../../components/PortfolioDetailModal';
 import { COLORS, FONTS, SPACING, RADIUS } from '../../constants/theme';
 import { useCryptoEngine } from '../../hooks/useCryptoEngine';
 import { TransferModal } from '../../components/TransferModal';
@@ -27,6 +28,7 @@ export default function CryptoScreen() {
     const [transferModalVisible, setTransferModalVisible] = useState(false);
     const [transferType, setTransferType] = useState<'DEPOSIT' | 'WITHDRAW'>('DEPOSIT');
     const [onboardingVisible, setOnboardingVisible] = useState(false);
+    const [portfolioModalVisible, setPortfolioModalVisible] = useState(false);
 
     // Trigger onboarding
     React.useEffect(() => {
@@ -134,78 +136,83 @@ export default function CryptoScreen() {
             </View>
 
             {/* Portfolio Glass Card */}
-            {renderGlassCard(
-                <View style={styles.portfolioContent}>
-                    <View style={styles.portfolioHeader}>
-                        <View style={styles.walletIconContainer}>
-                            <LinearGradient
-                                colors={['#8E2DE2', '#4A00E0']}
-                                style={styles.walletIconBg}
-                            >
-                                <Wallet size={20} color="#FFF" />
-                            </LinearGradient>
+            <TouchableOpacity onPress={() => {
+                setPortfolioModalVisible(true);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            }}>
+                {renderGlassCard(
+                    <View style={styles.portfolioContent}>
+                        <View style={styles.portfolioHeader}>
+                            <View style={styles.walletIconContainer}>
+                                <LinearGradient
+                                    colors={['#8E2DE2', '#4A00E0']}
+                                    style={styles.walletIconBg}
+                                >
+                                    <Wallet size={20} color="#FFF" />
+                                </LinearGradient>
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.portfolioLabel}>TOTAL PORTFOLIO</Text>
+                                <Text style={styles.portfolioValue}>
+                                    £{portfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </Text>
+                            </View>
                         </View>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.portfolioLabel}>TOTAL PORTFOLIO</Text>
-                            <Text style={styles.portfolioValue}>
-                                £{portfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </Text>
+
+                        <View style={styles.pnlContainer}>
+                            <View style={styles.pnlRow}>
+                                {portfolioPnL >= 0 ? (
+                                    <ArrowUpRight size={16} color="#00FF88" />
+                                ) : (
+                                    <ArrowDownRight size={16} color="#FF4444" />
+                                )}
+                                <Text style={[styles.pnlText, { color: portfolioPnL >= 0 ? '#00FF88' : '#FF4444' }]}>
+                                    {portfolioPnL >= 0 ? '+' : ''}£{Math.abs(portfolioPnL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </Text>
+                                <Text style={[styles.pnlPercent, { color: portfolioPnL >= 0 ? '#00FF88' : '#FF4444' }]}>
+                                    ({portfolioPnL >= 0 ? '+' : ''}{portfolioPnLPercent.toFixed(2)}%)
+                                </Text>
+                            </View>
                         </View>
-                    </View>
 
-                    <View style={styles.pnlContainer}>
-                        <View style={styles.pnlRow}>
-                            {portfolioPnL >= 0 ? (
-                                <ArrowUpRight size={16} color="#00FF88" />
-                            ) : (
-                                <ArrowDownRight size={16} color="#FF4444" />
-                            )}
-                            <Text style={[styles.pnlText, { color: portfolioPnL >= 0 ? '#00FF88' : '#FF4444' }]}>
-                                {portfolioPnL >= 0 ? '+' : ''}£{Math.abs(portfolioPnL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                            </Text>
-                            <Text style={[styles.pnlPercent, { color: portfolioPnL >= 0 ? '#00FF88' : '#FF4444' }]}>
-                                ({portfolioPnL >= 0 ? '+' : ''}{portfolioPnLPercent.toFixed(2)}%)
-                            </Text>
+                        {/* Quick Actions */}
+                        <View style={styles.quickActions}>
+                            <TouchableOpacity
+                                style={styles.actionButton}
+                                onPress={() => {
+                                    setTransferType('DEPOSIT');
+                                    setTransferModalVisible(true);
+                                }}
+                            >
+                                <LinearGradient
+                                    colors={['#00FF88', '#00CC66']}
+                                    style={styles.actionGradient}
+                                >
+                                    <TrendingUp size={16} color="#000" />
+                                    <Text style={styles.actionText}>Deposit</Text>
+                                </LinearGradient>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.actionButton}
+                                onPress={() => {
+                                    setTransferType('WITHDRAW');
+                                    setTransferModalVisible(true);
+                                }}
+                            >
+                                <LinearGradient
+                                    colors={['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
+                                    style={styles.actionGradient}
+                                >
+                                    <TrendingDown size={16} color="#FFF" />
+                                    <Text style={[styles.actionText, { color: '#FFF' }]}>Withdraw</Text>
+                                </LinearGradient>
+                            </TouchableOpacity>
                         </View>
-                    </View>
-
-                    {/* Quick Actions */}
-                    <View style={styles.quickActions}>
-                        <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={() => {
-                                setTransferType('DEPOSIT');
-                                setTransferModalVisible(true);
-                            }}
-                        >
-                            <LinearGradient
-                                colors={['#00FF88', '#00CC66']}
-                                style={styles.actionGradient}
-                            >
-                                <TrendingUp size={16} color="#000" />
-                                <Text style={styles.actionText}>Deposit</Text>
-                            </LinearGradient>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={() => {
-                                setTransferType('WITHDRAW');
-                                setTransferModalVisible(true);
-                            }}
-                        >
-                            <LinearGradient
-                                colors={['rgba(255,255,255,0.1)', 'rgba(255,255,255,0.05)']}
-                                style={styles.actionGradient}
-                            >
-                                <TrendingDown size={16} color="#FFF" />
-                                <Text style={[styles.actionText, { color: '#FFF' }]}>Withdraw</Text>
-                            </LinearGradient>
-                        </TouchableOpacity>
-                    </View>
-                </View>,
-                { marginBottom: SPACING.lg }
-            )}
+                    </View>,
+                    { marginBottom: SPACING.lg }
+                )}
+            </TouchableOpacity>
 
             {/* Holdings Carousel */}
             {Object.keys(cryptoHoldings).length > 0 && (
@@ -313,6 +320,12 @@ export default function CryptoScreen() {
                     setOnboardingVisible(false);
                     setCryptoOnboardingCompleted(true);
                 }}
+            />
+
+            <PortfolioDetailModal
+                visible={portfolioModalVisible}
+                onClose={() => setPortfolioModalVisible(false)}
+                type="crypto"
             />
         </SafeAreaView>
     );
