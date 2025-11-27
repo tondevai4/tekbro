@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
     X, TrendingUp, TrendingDown, PieChart, BarChart3, Target,
     Cpu, Building2, Heart, ShoppingBag, Zap as Lightning, Home,
-    Wallet, Briefcase, Activity, ArrowUpRight, ArrowDownRight
+    Wallet, Briefcase, Activity, ArrowUpRight, ArrowDownRight, Award, Sparkles
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useStore } from '../store/useStore';
@@ -162,7 +162,7 @@ export function PortfolioDetailModal({ visible, onClose, type }: PortfolioDetail
 
     const renderGlassCard = (children: React.ReactNode, style?: any) => (
         <LinearGradient
-            colors={['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.04)']}
+            colors={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.05)']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={[styles.glassCard, style]}
@@ -170,6 +170,20 @@ export function PortfolioDetailModal({ visible, onClose, type }: PortfolioDetail
             {children}
         </LinearGradient>
     );
+
+    // Circular Progress Component
+    const CircularProgress = ({ percentage, size = 60, color = '#00D9FF' }: any) => {
+        const radius = size / 2 - 4;
+        const circumference = 2 * Math.PI * radius;
+        const progress = (percentage / 100) * circumference;
+
+        return (
+            <View style={[styles.circularProgress, { width: size, height: size }]}>
+                <View style={styles.circleBackground} />
+                <Text style={[styles.percentageText, { fontSize: size * 0.3 }]}>{Math.round(percentage)}%</Text>
+            </View>
+        );
+    };
 
     return (
         <Modal
@@ -182,30 +196,42 @@ export function PortfolioDetailModal({ visible, onClose, type }: PortfolioDetail
                 <TouchableOpacity
                     style={styles.backdrop}
                     activeOpacity={1}
-                    onPress={onClose}
+                    onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        onClose();
+                    }}
                 />
 
                 <View style={styles.modalContent}>
                     <LinearGradient
-                        colors={['#0A0A0F', '#1A0A2E']}
+                        colors={type === 'stocks' ? ['#0A0A1F', '#1A0F2E', '#0A0A1F'] : ['#1A0A2E', '#2E0A2E', '#1A0A2E']}
                         style={styles.modalGradient}
                     >
                         {/* Header */}
                         <View style={styles.modalHeader}>
                             <View style={styles.headerLeft}>
-                                {type === 'stocks' ? (
-                                    <Briefcase size={24} color="#00D9FF" />
-                                ) : (
-                                    <Wallet size={24} color="#8E2DE2" />
-                                )}
+                                <LinearGradient
+                                    colors={type === 'stocks' ? ['#00D9FF', '#0099FF'] : ['#8E2DE2', '#4A00E0']}
+                                    style={styles.iconBg}
+                                >
+                                    {type === 'stocks' ? (
+                                        <Briefcase size={26} color="#FFF" />
+                                    ) : (
+                                        <Wallet size={26} color="#FFF" />
+                                    )}
+                                </LinearGradient>
                                 <View>
                                     <Text style={styles.modalTitle}>
                                         {type === 'stocks' ? 'Stock Portfolio' : 'Crypto Wallet'}
                                     </Text>
-                                    <Text style={styles.modalSubtitle}>Analytics & Insights</Text>
+                                    <Text style={styles.modalSubtitle}>Complete Analytics</Text>
                                 </View>
                             </View>
-                            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                            <TouchableOpacity
+                                onPress={onClose}
+                                style={styles.closeButton}
+                                onPressIn={() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)}
+                            >
                                 <X size={24} color="rgba(255,255,255,0.6)" />
                             </TouchableOpacity>
                         </View>
@@ -214,65 +240,110 @@ export function PortfolioDetailModal({ visible, onClose, type }: PortfolioDetail
                             style={styles.scrollView}
                             showsVerticalScrollIndicator={false}
                         >
-                            {/* Total Value Card */}
-                            {renderGlassCard(
-                                <View style={styles.valueCard}>
+                            {/* Hero Value Card with Gradient */}
+                            <LinearGradient
+                                colors={type === 'stocks'
+                                    ? ['rgba(0, 217, 255, 0.2)', 'rgba(0, 153, 255, 0.1)']
+                                    : ['rgba(142, 45, 226, 0.2)', 'rgba(74, 0, 224, 0.1)']}
+                                style={styles.heroCard}
+                            >
+                                <View style={styles.heroContent}>
+                                    <Sparkles size={20} color={type === 'stocks' ? '#00D9FF' : '#8E2DE2'} />
                                     <Text style={styles.valueLabel}>TOTAL VALUE</Text>
-                                    <Text style={styles.valueAmount}>
-                                        £{analytics.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </View>
+                                <Text style={styles.valueAmount}>
+                                    £{analytics.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </Text>
+                                <View style={styles.pnlRow}>
+                                    {analytics.totalPnL >= 0 ? (
+                                        <ArrowUpRight size={22} color="#00FF88" />
+                                    ) : (
+                                        <ArrowDownRight size={22} color="#FF4444" />
+                                    )}
+                                    <Text style={[styles.pnlText, { color: analytics.totalPnL >= 0 ? '#00FF88' : '#FF4444' }]}>
+                                        {analytics.totalPnL >= 0 ? '+' : ''}£{Math.abs(analytics.totalPnL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </Text>
-                                    <View style={styles.pnlRow}>
-                                        {analytics.totalPnL >= 0 ? (
-                                            <ArrowUpRight size={20} color="#00FF88" />
-                                        ) : (
-                                            <ArrowDownRight size={20} color="#FF4444" />
-                                        )}
-                                        <Text style={[styles.pnlText, { color: analytics.totalPnL >= 0 ? '#00FF88' : '#FF4444' }]}>
-                                            {analytics.totalPnL >= 0 ? '+' : ''}£{Math.abs(analytics.totalPnL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </Text>
-                                        <Text style={[styles.pnlPercent, { color: analytics.totalPnL >= 0 ? '#00FF88' : '#FF4444' }]}>
-                                            ({analytics.totalPnL >= 0 ? '+' : ''}{analytics.totalPnLPercent.toFixed(2)}%)
-                                        </Text>
-                                    </View>
-                                </View>,
-                                { marginBottom: SPACING.md }
-                            )}
+                                    <Text style={[styles.pnlPercent, { color: analytics.totalPnL >= 0 ? '#00FF88' : '#FF4444' }]}>
+                                        ({analytics.totalPnL >= 0 ? '+' : ''}{analytics.totalPnLPercent.toFixed(2)}%)
+                                    </Text>
+                                </View>
+                            </LinearGradient>
 
-                            {/* Quick Stats Grid */}
+                            {/* Stats Grid with Visual Indicators */}
                             <View style={styles.statsGrid}>
                                 {renderGlassCard(
                                     <View style={styles.statCard}>
-                                        <PieChart size={20} color="#00D9FF" />
+                                        <View style={styles.statHeader}>
+                                            <PieChart size={18} color="#00D9FF" />
+                                            <Text style={styles.statLabel}>Positions</Text>
+                                        </View>
                                         <Text style={styles.statValue}>{analytics.positionCount}</Text>
-                                        <Text style={styles.statLabel}>Positions</Text>
+                                        <View style={styles.progressBar}>
+                                            <View
+                                                style={[
+                                                    styles.progressFill,
+                                                    { width: `${Math.min(100, (analytics.positionCount / 10) * 100)}%`, backgroundColor: '#00D9FF' }
+                                                ]}
+                                            />
+                                        </View>
                                     </View>
                                 )}
                                 {renderGlassCard(
                                     <View style={styles.statCard}>
-                                        <Target size={20} color="#00FF88" />
+                                        <View style={styles.statHeader}>
+                                            <Target size={18} color="#00FF88" />
+                                            <Text style={styles.statLabel}>Diversified</Text>
+                                        </View>
                                         <Text style={styles.statValue}>{Math.round(analytics.diversificationScore)}%</Text>
-                                        <Text style={styles.statLabel}>Diversified</Text>
+                                        <View style={styles.progressBar}>
+                                            <View
+                                                style={[
+                                                    styles.progressFill,
+                                                    { width: `${analytics.diversificationScore}%`, backgroundColor: '#00FF88' }
+                                                ]}
+                                            />
+                                        </View>
                                     </View>
                                 )}
                                 {renderGlassCard(
                                     <View style={styles.statCard}>
-                                        <Wallet size={20} color="#FFD700" />
+                                        <View style={styles.statHeader}>
+                                            <Wallet size={18} color="#FFD700" />
+                                            <Text style={styles.statLabel}>Cash</Text>
+                                        </View>
                                         <Text style={styles.statValue}>{analytics.cashPercent.toFixed(0)}%</Text>
-                                        <Text style={styles.statLabel}>Cash</Text>
+                                        <View style={styles.progressBar}>
+                                            <View
+                                                style={[
+                                                    styles.progressFill,
+                                                    { width: `${analytics.cashPercent}%`, backgroundColor: '#FFD700' }
+                                                ]}
+                                            />
+                                        </View>
                                     </View>
                                 )}
                                 {type === 'crypto' && (
                                     renderGlassCard(
                                         <View style={styles.statCard}>
-                                            <Activity size={20} color="#FF6B9D" />
+                                            <View style={styles.statHeader}>
+                                                <Activity size={18} color="#FF6B9D" />
+                                                <Text style={styles.statLabel}>Avg Leverage</Text>
+                                            </View>
                                             <Text style={styles.statValue}>{analytics.averageLeverage.toFixed(1)}x</Text>
-                                            <Text style={styles.statLabel}>Avg Leverage</Text>
+                                            <View style={styles.progressBar}>
+                                                <View
+                                                    style={[
+                                                        styles.progressFill,
+                                                        { width: `${Math.min(100, (analytics.averageLeverage / 10) * 100)}%`, backgroundColor: '#FF6B9D' }
+                                                    ]}
+                                                />
+                                            </View>
                                         </View>
                                     )
                                 )}
                             </View>
 
-                            {/* Sector Breakdown (Stocks only) */}
+                            {/* Sector Breakdown (Stocks only) - Now with better visuals */}
                             {type === 'stocks' && analytics.sectors && analytics.sectors.length > 0 && (
                                 <>
                                     <Text style={styles.sectionTitle}>SECTOR ALLOCATION</Text>
@@ -289,17 +360,20 @@ export function PortfolioDetailModal({ visible, onClose, type }: PortfolioDetail
                                                                 colors={sectorColors}
                                                                 style={styles.sectorIcon}
                                                             >
-                                                                <SectorIcon size={16} color="#FFF" />
+                                                                <SectorIcon size={18} color="#FFF" />
                                                             </LinearGradient>
-                                                            <View>
+                                                            <View style={{ flex: 1 }}>
                                                                 <Text style={styles.sectorName}>{sector.sector}</Text>
-                                                                <Text style={styles.sectorPercent}>{sector.percentage.toFixed(1)}%</Text>
+                                                                <View style={styles.sectorProgressBar}>
+                                                                    <LinearGradient
+                                                                        colors={sectorColors}
+                                                                        style={[styles.sectorProgressFill, { width: `${sector.percentage}%` }]}
+                                                                    />
+                                                                </View>
                                                             </View>
                                                         </View>
                                                         <View style={styles.sectorRight}>
-                                                            <Text style={styles.sectorValue}>
-                                                                £{sector.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
-                                                            </Text>
+                                                            <Text style={styles.sectorPercent}>{sector.percentage.toFixed(1)}%</Text>
                                                             <Text style={[
                                                                 styles.sectorPnL,
                                                                 { color: sector.pnl >= 0 ? '#00FF88' : '#FF4444' }
@@ -319,13 +393,22 @@ export function PortfolioDetailModal({ visible, onClose, type }: PortfolioDetail
                             {/* Top Gainers */}
                             {analytics.topGainers.length > 0 && (
                                 <>
-                                    <Text style={styles.sectionTitle}>TOP GAINERS</Text>
+                                    <View style={styles.sectionHeader}>
+                                        <Award size={16} color="#00FF88" />
+                                        <Text style={styles.sectionTitle}>TOP GAINERS</Text>
+                                    </View>
                                     {renderGlassCard(
                                         <View style={styles.moversList}>
                                             {analytics.topGainers.map((item: any, index: number) => (
-                                                <View key={item.symbol} style={styles.moverItem}>
+                                                <LinearGradient
+                                                    key={item.symbol}
+                                                    colors={['rgba(0, 255, 136, 0.1)', 'rgba(0, 255, 136, 0.05)']}
+                                                    style={styles.moverItem}
+                                                >
                                                     <View style={styles.moverLeft}>
-                                                        <Text style={styles.moverRank}>#{index + 1}</Text>
+                                                        <View style={[styles.moverRankBadge, { backgroundColor: '#00FF88' }]}>
+                                                            <Text style={styles.moverRankText}>#{index + 1}</Text>
+                                                        </View>
                                                         <View>
                                                             <Text style={styles.moverSymbol}>{item.symbol}</Text>
                                                             <Text style={styles.moverName}>{item.name}</Text>
@@ -339,7 +422,7 @@ export function PortfolioDetailModal({ visible, onClose, type }: PortfolioDetail
                                                             £{item.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                                                         </Text>
                                                     </View>
-                                                </View>
+                                                </LinearGradient>
                                             ))}
                                         </View>,
                                         { marginBottom: SPACING.md }
@@ -350,13 +433,22 @@ export function PortfolioDetailModal({ visible, onClose, type }: PortfolioDetail
                             {/* Top Losers */}
                             {analytics.topLosers.length > 0 && (
                                 <>
-                                    <Text style={styles.sectionTitle}>TOP LOSERS</Text>
+                                    <View style={styles.sectionHeader}>
+                                        <TrendingDown size={16} color="#FF4444" />
+                                        <Text style={styles.sectionTitle}>TOP LOSERS</Text>
+                                    </View>
                                     {renderGlassCard(
                                         <View style={styles.moversList}>
                                             {analytics.topLosers.map((item: any, index: number) => (
-                                                <View key={item.symbol} style={styles.moverItem}>
+                                                <LinearGradient
+                                                    key={item.symbol}
+                                                    colors={['rgba(255, 68, 68, 0.1)', 'rgba(255, 68, 68, 0.05)']}
+                                                    style={styles.moverItem}
+                                                >
                                                     <View style={styles.moverLeft}>
-                                                        <Text style={styles.moverRank}>#{index + 1}</Text>
+                                                        <View style={[styles.moverRankBadge, { backgroundColor: '#FF4444' }]}>
+                                                            <Text style={styles.moverRankText}>#{index + 1}</Text>
+                                                        </View>
                                                         <View>
                                                             <Text style={styles.moverSymbol}>{item.symbol}</Text>
                                                             <Text style={styles.moverName}>{item.name}</Text>
@@ -370,7 +462,7 @@ export function PortfolioDetailModal({ visible, onClose, type }: PortfolioDetail
                                                             £{item.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                                                         </Text>
                                                     </View>
-                                                </View>
+                                                </LinearGradient>
                                             ))}
                                         </View>,
                                         { marginBottom: SPACING.xl }
@@ -392,31 +484,42 @@ const styles = StyleSheet.create({
     },
     backdrop: {
         ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0,0,0,0.7)',
+        backgroundColor: 'rgba(0,0,0,0.8)',
     },
     modalContent: {
-        height: '85%',
+        height: '90%',
         borderTopLeftRadius: RADIUS.xl * 2,
         borderTopRightRadius: RADIUS.xl * 2,
         overflow: 'hidden',
     },
     modalGradient: {
         flex: 1,
-        padding: SPACING.lg,
+        padding: SPACING.xl,
     },
     modalHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: SPACING.lg,
+        marginBottom: SPACING.xl,
     },
     headerLeft: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: SPACING.md,
     },
+    iconBg: {
+        width: 56,
+        height: 56,
+        borderRadius: RADIUS.lg,
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#00D9FF',
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+    },
     modalTitle: {
-        fontSize: 24,
+        fontSize: 26,
         fontFamily: FONTS.bold,
         color: '#FFF',
     },
@@ -431,42 +534,61 @@ const styles = StyleSheet.create({
     scrollView: {
         flex: 1,
     },
+    heroCard: {
+        borderRadius: RADIUS.xl,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+        padding: SPACING.xl,
+        alignItems: 'center',
+        marginBottom: SPACING.lg,
+        shadowColor: '#00D9FF',
+        shadowOpacity: 0.2,
+        shadowRadius: 15,
+        shadowOffset: { width: 0, height: 6 },
+    },
+    heroContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: 8,
+    },
+    valueLabel: {
+        fontSize: 11,
+        fontFamily: FONTS.bold,
+        color: 'rgba(255,255,255,0.6)',
+        letterSpacing: 1.5,
+    },
+    valueAmount: {
+        fontSize: 42,
+        fontFamily: FONTS.bold,
+        color: '#FFF',
+        letterSpacing: -2,
+        marginBottom: 8,
+    },
+    pnlRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    pnlText: {
+        fontSize: 20,
+        fontFamily: FONTS.bold,
+    },
+    pnlPercent: {
+        fontSize: 16,
+        fontFamily: FONTS.medium,
+        opacity: 0.8,
+    },
     glassCard: {
         borderRadius: RADIUS.xl,
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.1)',
         padding: SPACING.lg,
-        backgroundColor: 'rgba(255,255,255,0.02)',
-    },
-    valueCard: {
-        alignItems: 'center',
-        gap: SPACING.sm,
-    },
-    valueLabel: {
-        fontSize: 11,
-        fontFamily: FONTS.bold,
-        color: 'rgba(255,255,255,0.5)',
-        letterSpacing: 1,
-    },
-    valueAmount: {
-        fontSize: 36,
-        fontFamily: FONTS.bold,
-        color: '#FFF',
-        letterSpacing: -1,
-    },
-    pnlRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
-    pnlText: {
-        fontSize: 18,
-        fontFamily: FONTS.bold,
-    },
-    pnlPercent: {
-        fontSize: 14,
-        fontFamily: FONTS.medium,
-        opacity: 0.8,
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        shadowColor: '#000',
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
     },
     statsGrid: {
         flexDirection: 'row',
@@ -477,11 +599,15 @@ const styles = StyleSheet.create({
     statCard: {
         flex: 1,
         minWidth: '45%',
-        alignItems: 'center',
         gap: SPACING.sm,
     },
+    statHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+    },
     statValue: {
-        fontSize: 24,
+        fontSize: 28,
         fontFamily: FONTS.bold,
         color: '#FFF',
     },
@@ -490,12 +616,46 @@ const styles = StyleSheet.create({
         fontFamily: FONTS.medium,
         color: 'rgba(255,255,255,0.5)',
     },
+    progressBar: {
+        width: '100%',
+        height: 4,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderRadius: 2,
+        overflow: 'hidden',
+        marginTop: 4,
+    },
+    progressFill: {
+        height: '100%',
+        borderRadius: 2,
+    },
+    circularProgress: {
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'relative',
+    },
+    circleBackground: {
+        position: 'absolute',
+        width: '100%',
+        height: '100%',
+        borderRadius: 999,
+        borderWidth: 3,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    percentageText: {
+        fontFamily: FONTS.bold,
+        color: '#FFF',
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: SPACING.md,
+    },
     sectionTitle: {
         fontSize: 11,
         fontFamily: FONTS.bold,
-        color: 'rgba(255,255,255,0.4)',
+        color: 'rgba(255,255,255,0.5)',
         letterSpacing: 1.5,
-        marginBottom: SPACING.md,
     },
     sectorList: {
         gap: SPACING.md,
@@ -504,16 +664,18 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        gap: SPACING.md,
     },
     sectorLeft: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: SPACING.md,
+        flex: 1,
     },
     sectorIcon: {
-        width: 32,
-        height: 32,
-        borderRadius: RADIUS.sm,
+        width: 40,
+        height: 40,
+        borderRadius: RADIUS.md,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -521,17 +683,25 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontFamily: FONTS.bold,
         color: '#FFF',
+        marginBottom: 4,
     },
-    sectorPercent: {
-        fontSize: 12,
-        fontFamily: FONTS.medium,
-        color: 'rgba(255,255,255,0.5)',
+    sectorProgressBar: {
+        width: '100%',
+        height: 3,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderRadius: 2,
+        overflow: 'hidden',
+    },
+    sectorProgressFill: {
+        height: '100%',
+        borderRadius: 2,
     },
     sectorRight: {
         alignItems: 'flex-end',
+        minWidth: 60,
     },
-    sectorValue: {
-        fontSize: 14,
+    sectorPercent: {
+        fontSize: 16,
         fontFamily: FONTS.bold,
         color: '#FFF',
     },
@@ -540,26 +710,37 @@ const styles = StyleSheet.create({
         fontFamily: FONTS.medium,
     },
     moversList: {
-        gap: SPACING.md,
+        gap: SPACING.sm,
     },
     moverItem: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        padding: SPACING.md,
+        borderRadius: RADIUS.lg,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
     },
     moverLeft: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: SPACING.md,
+        flex: 1,
     },
-    moverRank: {
-        fontSize: 16,
+    moverRankBadge: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    moverRankText: {
+        fontSize: 11,
         fontFamily: FONTS.bold,
-        color: 'rgba(255,255,255,0.3)',
-        width: 32,
+        color: '#000',
     },
     moverSymbol: {
-        fontSize: 14,
+        fontSize: 15,
         fontFamily: FONTS.bold,
         color: '#FFF',
     },
@@ -572,7 +753,7 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
     },
     moverPnL: {
-        fontSize: 16,
+        fontSize: 18,
         fontFamily: FONTS.bold,
     },
     moverValue: {

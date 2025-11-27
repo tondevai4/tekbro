@@ -268,3 +268,12 @@ export const useMarketEngine = () => {
         dismissEvent: () => setActiveNews(null)
     };
 };
+
+        const newsInterval = setInterval(checkNews, 2000);
+        return () => clearInterval(newsInterval);
+    }, []);
+
+    return {
+        dismissEvent: () => setActiveNews(null)
+    };
+};
