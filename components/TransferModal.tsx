@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
+import { X } from 'lucide-react-native';
+import { FONTS, SPACING, RADIUS } from '../constants/theme';
 import { useCryptoStore } from '../store/useCryptoStore';
 import { useStore } from '../store/useStore';
 import * as Haptics from 'expo-haptics';
+import { useTheme } from '../hooks/useTheme';
 
 interface TransferModalProps {
     visible: boolean;
@@ -15,6 +16,7 @@ interface TransferModalProps {
 export const TransferModal: React.FC<TransferModalProps> = ({ visible, onClose, type }) => {
     const { cryptoWallet, transferToCrypto, transferFromCrypto } = useCryptoStore();
     const { cash } = useStore();
+    const { theme } = useTheme();
     const [amount, setAmount] = useState('');
 
     // Reset amount when modal opens
@@ -61,32 +63,32 @@ export const TransferModal: React.FC<TransferModalProps> = ({ visible, onClose, 
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.modalOverlay}
             >
-                <View style={styles.modalContent}>
+                <View style={[styles.modalContent, { backgroundColor: theme.card }]}>
                     <View style={styles.modalHeader}>
-                        <Text style={styles.modalTitle}>
+                        <Text style={[styles.modalTitle, { color: theme.text }]}>
                             {type === 'DEPOSIT' ? 'Deposit to Crypto' : 'Withdraw from Crypto'}
                         </Text>
                         <TouchableOpacity onPress={onClose}>
-                            <Ionicons name="close" size={24} color={COLORS.text} />
+                            <X size={24} color={theme.text} />
                         </TouchableOpacity>
                     </View>
 
-                    <Text style={styles.modalSubtitle}>
+                    <Text style={[styles.modalSubtitle, { color: theme.textSub }]}>
                         {type === 'DEPOSIT'
                             ? `Available Cash: £${cash.toLocaleString()}`
                             : `Available Crypto Balance: £${cryptoWallet.toLocaleString()}`
                         }
                     </Text>
 
-                    <View style={styles.inputContainer}>
-                        <Text style={styles.currencySymbol}>£</Text>
+                    <View style={[styles.inputContainer, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+                        <Text style={[styles.currencySymbol, { color: theme.text }]}>£</Text>
                         <TextInput
-                            style={styles.input}
+                            style={[styles.input, { color: theme.text }]}
                             value={amount}
                             onChangeText={setAmount}
                             keyboardType="numeric"
                             placeholder="0.00"
-                            placeholderTextColor={COLORS.textSub}
+                            placeholderTextColor={theme.textSub}
                             autoFocus={visible}
                         />
                     </View>
@@ -95,13 +97,13 @@ export const TransferModal: React.FC<TransferModalProps> = ({ visible, onClose, 
                         {[100, 500, 1000, 5000].map((val) => (
                             <TouchableOpacity
                                 key={val}
-                                style={styles.quickButton}
+                                style={[styles.quickButton, { backgroundColor: theme.bg, borderColor: theme.border }]}
                                 onPress={() => {
                                     setAmount(val.toString());
                                     Haptics.selectionAsync();
                                 }}
                             >
-                                <Text style={styles.quickButtonText}>£{val}</Text>
+                                <Text style={[styles.quickButtonText, { color: theme.text }]}>£{val}</Text>
                             </TouchableOpacity>
                         ))}
                     </View>
@@ -109,7 +111,7 @@ export const TransferModal: React.FC<TransferModalProps> = ({ visible, onClose, 
                     {/* Max Button Row */}
                     <View style={styles.maxButtonContainer}>
                         <TouchableOpacity
-                            style={styles.maxButton}
+                            style={[styles.maxButton, { borderColor: theme.accent }]}
                             onPress={() => {
                                 if (type === 'DEPOSIT') {
                                     setAmount(cash.toString());
@@ -119,18 +121,18 @@ export const TransferModal: React.FC<TransferModalProps> = ({ visible, onClose, 
                                 Haptics.selectionAsync();
                             }}
                         >
-                            <Text style={styles.maxButtonText}>MAX</Text>
+                            <Text style={[styles.maxButtonText, { color: theme.accent }]}>MAX</Text>
                         </TouchableOpacity>
                     </View>
 
                     <TouchableOpacity
                         style={[
                             styles.confirmButton,
-                            { backgroundColor: type === 'DEPOSIT' ? COLORS.success : COLORS.accent }
+                            { backgroundColor: type === 'DEPOSIT' ? theme.success : theme.accent }
                         ]}
                         onPress={handleTransfer}
                     >
-                        <Text style={styles.confirmButtonText}>
+                        <Text style={[styles.confirmButtonText, { color: theme.white }]}>
                             {type === 'DEPOSIT' ? 'Confirm Deposit' : 'Confirm Withdrawal'}
                         </Text>
                     </TouchableOpacity>
@@ -147,7 +149,6 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     modalContent: {
-        backgroundColor: COLORS.card,
         borderTopLeftRadius: RADIUS.xl,
         borderTopRightRadius: RADIUS.xl,
         padding: SPACING.xl,
@@ -162,36 +163,30 @@ const styles = StyleSheet.create({
     modalTitle: {
         fontSize: 20,
         fontFamily: FONTS.bold,
-        color: COLORS.text,
     },
     modalSubtitle: {
         fontSize: 14,
         fontFamily: FONTS.regular,
-        color: COLORS.textSub,
         marginBottom: SPACING.xl,
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: COLORS.bg,
         borderRadius: RADIUS.lg,
         paddingHorizontal: SPACING.lg,
         paddingVertical: SPACING.md,
         marginBottom: SPACING.lg,
         borderWidth: 1,
-        borderColor: COLORS.border,
     },
     currencySymbol: {
         fontSize: 24,
         fontFamily: FONTS.bold,
-        color: COLORS.text,
         marginRight: SPACING.sm,
     },
     input: {
         flex: 1,
         fontSize: 24,
         fontFamily: FONTS.bold,
-        color: COLORS.text,
     },
     quickAmounts: {
         flexDirection: 'row',
@@ -208,23 +203,18 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         borderRadius: RADIUS.sm,
         borderWidth: 1,
-        borderColor: COLORS.accent,
     },
     maxButtonText: {
-        color: COLORS.accent,
         fontSize: 12,
         fontFamily: FONTS.bold,
     },
     quickButton: {
-        backgroundColor: COLORS.bg,
         paddingVertical: 8,
         paddingHorizontal: 12,
         borderRadius: RADIUS.md,
         borderWidth: 1,
-        borderColor: COLORS.border,
     },
     quickButtonText: {
-        color: COLORS.text,
         fontFamily: FONTS.medium,
     },
     confirmButton: {
@@ -233,7 +223,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     confirmButtonText: {
-        color: COLORS.white,
         fontSize: 16,
         fontFamily: FONTS.bold,
     },

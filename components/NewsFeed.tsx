@@ -23,11 +23,12 @@ interface NewsFeedProps {
     refreshing?: boolean;
 }
 
-export const NewsFeed: React.FC<NewsFeedProps> = ({
+export const NewsFeed: React.FC<NewsFeedProps & { disableScroll?: boolean }> = ({
     news,
     onDismissNews,
     onRefresh,
-    refreshing = false
+    refreshing = false,
+    disableScroll = false
 }) => {
     const scrollY = useSharedValue(0);
     const [breakingNews, setBreakingNews] = useState<NewsEvent | null>(null);
@@ -71,7 +72,7 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
 
     const renderNewsCard = useCallback(({ item, index }: { item: NewsEvent; index: number }) => {
         return (
-            <Animated.View style={{ paddingHorizontal: SPACING.lg }}>
+            <Animated.View style={{ paddingHorizontal: SPACING.lg }} key={item.id}>
                 <NewsCard
                     news={item}
                     onDismiss={() => onDismissNews(item.id)}
@@ -83,6 +84,8 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
     }, [onDismissNews, handleNewsPress, handleQuickTrade]);
 
     const headerStyle = useAnimatedStyle(() => {
+        if (disableScroll) return { opacity: 1 };
+
         const opacity = interpolate(
             scrollY.value,
             [0, 50],
@@ -93,17 +96,23 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
         return { opacity };
     });
 
-    return (
-        <View style={styles.container}>
-            {/* Header */}
-            <Animated.View style={[styles.header, headerStyle]}>
-                <Text style={styles.headerTitle}>📰 News Feed</Text>
-                <Text style={styles.headerSubtitle}>
-                    {news.length} {news.length === 1 ? 'story' : 'stories'}
-                </Text>
-            </Animated.View>
+    const renderContent = () => {
+        if (disableScroll) {
+            return (
+                <View style={styles.listContent}>
+                    {news.length === 0 ? (
+                        <View style={styles.emptyState}>
+                            <Text style={styles.emptyIcon}>📭</Text>
+                            <Text style={styles.emptyText}>No news yet</Text>
+                        </View>
+                    ) : (
+                        news.map((item, index) => renderNewsCard({ item, index }))
+                    )}
+                </View>
+            );
+        }
 
-            {/* News List */}
+        return (
             <AnimatedFlatList
                 data={news}
                 renderItem={renderNewsCard as any}
@@ -122,6 +131,21 @@ export const NewsFeed: React.FC<NewsFeedProps> = ({
                     </View>
                 }
             />
+        );
+    };
+
+    return (
+        <View style={styles.container}>
+            {/* Header */}
+            <Animated.View style={[styles.header, headerStyle]}>
+                <Text style={styles.headerTitle}>📰 News Feed</Text>
+                <Text style={styles.headerSubtitle}>
+                    {news.length} {news.length === 1 ? 'story' : 'stories'}
+                </Text>
+            </Animated.View>
+
+            {/* News List */}
+            {renderContent()}
 
             {/* Breaking News Alert */}
             <BreakingNewsAlert

@@ -8,16 +8,18 @@ import {
     Droplet, Lightbulb, LucideIcon, Cloud, Database, Globe, Lock, Target,
     Store, Palette, RefreshCw, Snowflake, Dog, Leaf, Eye, Smartphone as Phone,
     Briefcase, BarChart3, DollarSign, PiggyBank, ArrowRight, Handshake,
-    Pill, Syringe, FlaskConical, Dna, Virus, Microscope, Bot, ShoppingCart,
+    Pill, Syringe, FlaskConical, Dna, Biohazard, Microscope, Bot, ShoppingCart,
     Hammer, Wrench, Coffee, Utensils, Beer, Shirt, Leaf as Yoga, CarFront,
-    Fuel, BarrelAlternate as Barrel, Sun, Plug, Radio, Warehouse, HardDrive,
+    Fuel, Cylinder as Barrel, Sun, Plug, Radio, Warehouse, HardDrive,
     Building, Drumstick, Salad, Palette as PaletteIcon
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
+import * as Haptics from 'expo-haptics';
+import { FONTS, SPACING, RADIUS } from '../constants/theme';
 import { Stock } from '../types';
 import { useStore } from '../store/useStore';
 import { HapticPatterns } from '../utils/haptics';
+import { useTheme } from '../hooks/useTheme';
 
 interface StockCardProps {
     stock: Stock;
@@ -55,7 +57,7 @@ const COMPANY_ICONS: Record<string, LucideIcon> = {
     // Pharma
     'PFE': Pill, 'JNJ': Heart, 'MRK': FlaskConical, 'LLY': Syringe, 'ABBV': FlaskConical,
     // Biotech
-    'MRNA': Dna, 'BNTX': Virus, 'REGN': Microscope, 'VRTX': FlaskConical, 'GILD': Shield,
+    'MRNA': Dna, 'BNTX': Biohazard, 'REGN': Microscope, 'VRTX': FlaskConical, 'GILD': Shield,
     // Medical Devices
     'MDT': Heart, 'ABT': Microscope, 'TMO': FlaskConical, 'DHR': Heart, 'ISRG': Bot,
 
@@ -81,13 +83,12 @@ const COMPANY_ICONS: Record<string, LucideIcon> = {
 
 const StockCardComponent: React.FC<StockCardProps> = ({ stock }) => {
     const router = useRouter();
-    // OPTIMIZATION: Select only what we need to prevent re-renders
-    const watchlist = useStore(state => state.watchlist);
+    const { theme } = useTheme();
+    // OPTIMIZATION: Use selector for watchlist to only re-render when THIS stock status changes
+    const isWatchlisted = useStore(React.useCallback(state => state.watchlist.includes(stock.symbol), [stock.symbol]));
     const toggleWatchlist = useStore(state => state.toggleWatchlist);
     const buyStock = useStore(state => state.buyStock);
-    const cash = useStore(state => state.cash);
-
-    const isWatchlisted = watchlist.includes(stock.symbol);
+    // Don't subscribe to cash, just get it when needed
 
     // Animation for press effect
     const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -103,6 +104,7 @@ const StockCardComponent: React.FC<StockCardProps> = ({ stock }) => {
     const isPositive = priceChange >= 0;
 
     const handlePressIn = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         Animated.spring(scaleAnim, {
             toValue: 0.97,
             tension: 400,
@@ -122,7 +124,8 @@ const StockCardComponent: React.FC<StockCardProps> = ({ stock }) => {
 
     const handleQuickBuy = (e: any) => {
         e.stopPropagation();
-        if (cash >= stock.price) {
+        const currentCash = useStore.getState().cash;
+        if (currentCash >= stock.price) {
             buyStock(stock.symbol, 1, stock.price);
             HapticPatterns.tradeExecuted();
         } else {
@@ -137,17 +140,19 @@ const StockCardComponent: React.FC<StockCardProps> = ({ stock }) => {
     };
 
     const getGradientColors = (): [string, string] => {
-        // FIFA Style: Deep, rich backgrounds
+        // Theme-Aware Growth Colors
         if (isPositive) {
-            return ['rgba(13, 77, 77, 0.8)', 'rgba(26, 95, 95, 0.4)']; // Deep Cyan/Green Glass
+            // Use theme.primary with opacity for a premium glass effect
+            return [`${theme.primary}CC`, `${theme.primary}66`];
         } else {
-            return ['rgba(77, 26, 26, 0.8)', 'rgba(95, 38, 38, 0.4)']; // Deep Red/Maroon Glass
+            // Iconic Red for Loss (Preserved)
+            return ['rgba(239, 68, 68, 0.8)', 'rgba(239, 68, 68, 0.4)']; // Red-500
         }
     };
 
     const getBorderColor = () => {
-        if (isPositive) return COLORS.accent; // Glowing Cyan
-        return '#FF4444'; // Glowing Red
+        if (isPositive) return theme.primary; // Theme Color
+        return '#EF4444'; // Red-500
     };
 
     const IconComponent = COMPANY_ICONS[stock.symbol] || TrendingUp;
@@ -170,13 +175,13 @@ const StockCardComponent: React.FC<StockCardProps> = ({ stock }) => {
                         {/* Left: Icon & Rank */}
                         <View style={styles.leftSection}>
                             <View style={[styles.iconContainer, { shadowColor: getBorderColor() }]}>
-                                <IconComponent size={28} color={COLORS.accent} />
+                                <IconComponent size={28} color={isPositive ? theme.primary : '#EF4444'} />
                             </View>
                             {/* Momentum Badge (FIFA "Form") */}
                             {Math.abs(changePercent) > 2 && (
-                                <View style={styles.badge}>
-                                    <Zap size={10} color="#000" fill="#000" />
-                                    <Text style={styles.badgeText}>HOT</Text>
+                                <View style={[styles.badge, { backgroundColor: isPositive ? theme.primary : '#EF4444', shadowColor: isPositive ? theme.primary : '#EF4444' }]}>
+                                    <Zap size={10} color="#FFF" fill="#FFF" />
+                                    <Text style={[styles.badgeText, { color: '#FFF' }]}>HOT</Text>
                                 </View>
                             )}
                         </View>
@@ -206,9 +211,9 @@ const StockCardComponent: React.FC<StockCardProps> = ({ stock }) => {
                                     maximumFractionDigits: 2
                                 })}
                             </Text>
-                            <View style={[styles.changeBadge, { backgroundColor: isPositive ? 'rgba(0,255,255,0.1)' : 'rgba(255,0,0,0.1)' }]}>
-                                {isPositive ? <TrendingUp size={12} color={COLORS.accent} /> : <TrendingDown size={12} color="#FF4444" />}
-                                <Text style={[styles.changeText, { color: isPositive ? COLORS.accent : '#FF4444' }]}>
+                            <View style={[styles.changeBadge, { backgroundColor: isPositive ? theme.primary + '20' : 'rgba(239, 68, 68, 0.2)' }]}>
+                                {isPositive ? <TrendingUp size={12} color={theme.primary} /> : <TrendingDown size={12} color="#EF4444" />}
+                                <Text style={[styles.changeText, { color: isPositive ? theme.primary : '#EF4444' }]}>
                                     {changePercent.toFixed(2)}%
                                 </Text>
                             </View>
@@ -269,16 +274,16 @@ const styles = StyleSheet.create({
     badge: {
         position: 'absolute',
         bottom: -6,
-        backgroundColor: COLORS.accent,
         paddingHorizontal: 6,
         paddingVertical: 2,
         borderRadius: RADIUS.full,
         flexDirection: 'row',
         alignItems: 'center',
         gap: 2,
-        shadowColor: COLORS.accent,
         shadowOpacity: 0.5,
         shadowRadius: 4,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.2)',
     },
     badgeText: {
         fontSize: 8,

@@ -4,7 +4,7 @@ import { Stack, useRouter, useSegments, useRootNavigationState } from 'expo-rout
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { appStorage } from '../utils/storage';
 import { useMarketEngine } from '../hooks/useMarketEngine';
 import { useCryptoEngine } from '../hooks/useCryptoEngine';
 import { useStore } from '../store/useStore';
@@ -56,13 +56,17 @@ export default function RootLayout() {
                 initializeCryptoStore();
 
                 // Check onboarding status
-                const completed = await AsyncStorage.getItem('onboarding_completed');
+                const completed = await appStorage.getStringAsync('onboarding_completed');
 
                 if (!completed && segments[0] !== 'onboarding') {
                     onboardingChecked.current = true;
                     setIsReady(true);
                     router.replace('/onboarding');
                 } else {
+                    // Sync store if storage says completed but store might not
+                    if (completed === 'true') {
+                        useStore.getState().setOnboardingCompleted(true);
+                    }
                     onboardingChecked.current = true;
                     setIsReady(true);
                 }
@@ -78,6 +82,14 @@ export default function RootLayout() {
             checkOnboarding();
         }
     }, [rootNavigationState?.key]);
+
+    // Watch for store reset to trigger onboarding
+    const { onboardingCompleted } = useStore();
+    useEffect(() => {
+        if (isReady && !onboardingCompleted && segments[0] !== 'onboarding') {
+            router.replace('/onboarding');
+        }
+    }, [onboardingCompleted, isReady, segments]);
 
     // Show a loading screen or splash while checking onboarding
     if (!isReady && !rootNavigationState?.key) {
@@ -108,7 +120,7 @@ export default function RootLayout() {
                             />
                         </Stack>
                         <GameAlert
-                            visible={!!activeNews}
+                            visible={!!activeNews && onboardingCompleted}
                             title={activeNews?.type === 'COMPANY' ? `NEWS: ${activeNews.symbol}` : 'MARKET UPDATE'}
                             message={activeNews?.headline || ''}
                             onDismiss={() => setActiveNews(null)}

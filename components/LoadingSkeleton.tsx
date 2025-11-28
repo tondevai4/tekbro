@@ -1,7 +1,17 @@
-import React, { useEffect, useRef } from 'react';
-import { View, StyleSheet, Animated } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, StyleSheet, Dimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import Animated, {
+    useSharedValue,
+    useAnimatedStyle,
+    withRepeat,
+    withTiming,
+    Easing,
+    interpolate
+} from 'react-native-reanimated';
 import { COLORS, RADIUS, SPACING } from '../constants/theme';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 interface SkeletonProps {
     width?: number | string;
@@ -16,25 +26,23 @@ export const Skeleton: React.FC<SkeletonProps> = ({
     borderRadius = RADIUS.sm,
     style
 }) => {
-    const shimmerAnim = useRef(new Animated.Value(0)).current;
+    const translateX = useSharedValue(-SCREEN_WIDTH);
 
     useEffect(() => {
-        const animation = Animated.loop(
-            Animated.timing(shimmerAnim, {
-                toValue: 1,
+        translateX.value = withRepeat(
+            withTiming(SCREEN_WIDTH, {
                 duration: 1500,
-                useNativeDriver: true,
-            })
+                easing: Easing.linear,
+            }),
+            -1, // Infinite loop
+            false // Do not reverse
         );
+    }, []);
 
-        animation.start();
-
-        return () => animation.stop();
-    }, [shimmerAnim]);
-
-    const translateX = shimmerAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [-300, 300],
+    const animatedStyle = useAnimatedStyle(() => {
+        return {
+            transform: [{ translateX: translateX.value }],
+        };
     });
 
     return (
@@ -52,16 +60,14 @@ export const Skeleton: React.FC<SkeletonProps> = ({
             <Animated.View
                 style={[
                     StyleSheet.absoluteFill,
-                    {
-                        transform: [{ translateX }],
-                    },
+                    animatedStyle
                 ]}
             >
                 <LinearGradient
                     colors={[
-                        COLORS.border,
+                        'transparent',
                         'rgba(255,255,255,0.1)',
-                        COLORS.border,
+                        'transparent',
                     ]}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
@@ -168,19 +174,19 @@ export const AchievementCardSkeleton: React.FC = () => {
 
 const styles = StyleSheet.create({
     skeleton: {
-        backgroundColor: COLORS.border,
+        backgroundColor: 'rgba(255,255,255,0.05)',
         overflow: 'hidden',
     },
     stockCard: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: COLORS.card,
+        backgroundColor: 'rgba(255,255,255,0.02)',
         padding: SPACING.md,
         borderRadius: RADIUS.lg,
         marginBottom: SPACING.sm,
         borderWidth: 1,
-        borderColor: COLORS.border,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
     stockCardLeft: {
         flexDirection: 'row',
@@ -197,12 +203,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: COLORS.card,
+        backgroundColor: 'rgba(255,255,255,0.02)',
         padding: SPACING.md,
         borderRadius: RADIUS.lg,
         marginBottom: SPACING.sm,
         borderWidth: 1,
-        borderColor: COLORS.border,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
     portfolioLeft: {
         flexDirection: 'row',
@@ -219,12 +225,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: COLORS.card,
+        backgroundColor: 'rgba(255,255,255,0.02)',
         padding: SPACING.sm,
         borderRadius: RADIUS.md,
         marginBottom: SPACING.xs,
         borderWidth: 1,
-        borderColor: COLORS.border,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
     tradeLeft: {
         flexDirection: 'row',
@@ -239,12 +245,12 @@ const styles = StyleSheet.create({
     },
     newsCard: {
         flexDirection: 'row',
-        backgroundColor: COLORS.card,
+        backgroundColor: 'rgba(255,255,255,0.02)',
         padding: SPACING.md,
         borderRadius: RADIUS.lg,
         marginBottom: SPACING.sm,
         borderWidth: 1,
-        borderColor: COLORS.border,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
     newsContent: {
         flex: 1,
@@ -253,12 +259,12 @@ const styles = StyleSheet.create({
     statsHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: COLORS.card,
+        backgroundColor: 'rgba(255,255,255,0.02)',
         padding: SPACING.lg,
         marginBottom: SPACING.xl,
         borderRadius: 12,
         borderWidth: 1,
-        borderColor: COLORS.borderLight,
+        borderColor: 'rgba(255,255,255,0.05)',
         gap: SPACING.lg,
     },
     statsHeaderContent: {
@@ -270,11 +276,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     achievementCard: {
-        backgroundColor: COLORS.card,
+        backgroundColor: 'rgba(255,255,255,0.02)',
         padding: SPACING.md,
         borderRadius: RADIUS.lg,
         borderWidth: 1,
-        borderColor: COLORS.border,
+        borderColor: 'rgba(255,255,255,0.05)',
         alignItems: 'center',
     },
 });

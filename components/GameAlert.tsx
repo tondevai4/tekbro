@@ -2,7 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions } from 'react-native';
 import { Search } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { COLORS, FONTS, RADIUS, SPACING } from '../constants/theme';
+import { FONTS, RADIUS, SPACING } from '../constants/theme';
+import { useTheme } from '../hooks/useTheme';
 
 const { width } = Dimensions.get('window');
 
@@ -14,6 +15,7 @@ interface GameAlertProps {
 }
 
 export const GameAlert: React.FC<GameAlertProps> = ({ visible, title, message, onDismiss }) => {
+    const { theme } = useTheme();
     const translateY = useRef(new Animated.Value(-100)).current;
     const opacity = useRef(new Animated.Value(0)).current;
 
@@ -80,22 +82,29 @@ export const GameAlert: React.FC<GameAlertProps> = ({ visible, title, message, o
             <TouchableOpacity
                 activeOpacity={0.9}
                 onPress={handleDismiss}
-                style={styles.content}
+                style={[
+                    styles.content,
+                    {
+                        backgroundColor: theme.card,
+                        borderColor: theme.primary,
+                        shadowColor: theme.primary
+                    }
+                ]}
             >
                 {/* Search Icon (Game Style) */}
                 <View style={styles.iconContainer}>
-                    <Search size={20} color={COLORS.accent} />
+                    <Search size={20} color={theme.primary} />
                 </View>
 
                 {/* Text Content */}
                 <View style={styles.textContainer}>
-                    <Text style={styles.title} numberOfLines={1}>{title}</Text>
-                    <Text style={styles.message} numberOfLines={2}>{message}</Text>
+                    <Text style={[styles.title, { color: theme.primary }]} numberOfLines={1}>{title}</Text>
+                    <Text style={[styles.message, { color: theme.textSub }]} numberOfLines={2}>{message}</Text>
                 </View>
 
                 {/* Dismiss Hint */}
-                <View style={styles.dismissContainer}>
-                    <Text style={styles.dismissText}>OK</Text>
+                <View style={[styles.dismissContainer, { borderLeftColor: theme.border }]}>
+                    <Text style={[styles.dismissText, { color: theme.text }]}>OK</Text>
                 </View>
             </TouchableOpacity>
         </Animated.View>
@@ -114,15 +123,12 @@ const styles = StyleSheet.create({
     },
     content: {
         width: '100%',
-        backgroundColor: '#0A1014', // Dark background like search bar
         borderRadius: RADIUS.full, // Pill shape
         borderWidth: 1,
-        borderColor: COLORS.accent, // Cyan border
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 12,
         paddingHorizontal: 16,
-        shadowColor: COLORS.accent,
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.3,
         shadowRadius: 10,
@@ -135,13 +141,11 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     title: {
-        color: COLORS.accent,
         fontFamily: FONTS.bold,
         fontSize: 14,
         marginBottom: 2,
     },
     message: {
-        color: '#A0A0A0',
         fontFamily: FONTS.medium,
         fontSize: 12,
     },
@@ -149,10 +153,8 @@ const styles = StyleSheet.create({
         marginLeft: 12,
         paddingLeft: 12,
         borderLeftWidth: 1,
-        borderLeftColor: 'rgba(255,255,255,0.1)',
     },
     dismissText: {
-        color: COLORS.text,
         fontFamily: FONTS.bold,
         fontSize: 12,
     }

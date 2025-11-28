@@ -1,123 +1,162 @@
-# 📈 PaperTrader: Advanced Stock Market Simulator
+# 📈 PaperTrader
 
-> **A professional-grade, gamified trading platform built to demonstrate high-performance React Native development. Featuring a custom market engine, complex state management, and a premium glassmorphism UI.**
-
-![PaperTrader Banner](https://via.placeholder.com/1200x600?text=PaperTrader+Showcase)
+**PaperTrader** is a premium, mobile-first paper trading simulation app built with **React Native** and **Expo**. It offers a risk-free environment for users to practice trading stocks and cryptocurrencies, featuring a high-fidelity "Glassmorphism" UI, real-time market simulation, and deep gamification elements.
 
 ---
 
-## 🚀 Project Overview
+## ✨ Key Features
 
-**PaperTrader** is not just a clone; it's a fully functional simulation engine designed to replicate the emotional and technical challenges of trading. Built with **React Native (Expo)** and **TypeScript**, it leverages modern mobile development practices to deliver a 60fps experience even with heavy data streaming.
+### 💹 Trading Engine
+- **Stocks & Crypto**: Trade top US stocks (AAPL, TSLA, NVDA, etc.) and major cryptocurrencies (BTC, ETH, SOL).
+- **Real-Time Simulation**: Dynamic price updates with realistic volatility and market movements.
+- **Order Types**: Buy and Sell at market prices with instant execution.
+- **Leverage (Crypto)**: Advanced trading with leverage options for crypto assets.
+- **Portfolio Tracking**: Real-time calculation of equity, holdings value, and profit/loss.
 
-### Key Objectives
-- **Performance**: Rendering 100+ live-updating tickers without frame drops.
-- **Complexity**: Managing interdependent state (Portfolio, Market, Gamification, Crypto) via **Zustand**.
-- **UX/UI**: Implementing a "State of the Art" design system with **Glassmorphism**, **Reanimated** interactions, and **Haptic Feedback**.
+### 🎮 Gamification
+- **Leveling System**: Earn XP for every trade, profit, and daily login. Level up to unlock new features.
+- **Achievements**: Over 20 unique achievements to unlock (e.g., "Diamond Hands", "Whale Alert").
+- **Leaderboard**: Compete against simulated "bot" traders and climb the global rankings.
+- **Daily Rewards**: Login bonuses to keep your streak alive and boost your starting capital.
 
----
+### 🎨 Premium UI/UX
+- **Glassmorphism Design**: Modern, translucent UI elements with blur effects using `expo-blur`.
+- **Dynamic Theming**: Four distinct themes: **Midnight** (Default), **Ocean**, **Sunset**, and **Forest**.
+- **Fluid Animations**: Powered by `react-native-reanimated` for smooth transitions and interactions.
+- **Haptic Feedback**: Tactile responses for actions using `expo-haptics`.
+- **Interactive Charts**: Visual price history using `react-native-gifted-charts`.
 
-## 🎨 Design Philosophy
-
-The user interface was crafted with a "Mobile-First, Premium-First" mindset.
-
-- **Glassmorphism**: We utilized `expo-blur` and semi-transparent layers to create depth and hierarchy, mimicking modern fintech aesthetics (e.g., Revolut, Robinhood).
-- **Micro-Interactions**: Every tap provides feedback. Whether it's the **Haptic** tick when scrolling the picker or the **Reanimated** spring animation when opening a modal, the app feels "alive."
-- **Data Visualization**: Complex data is simplified through color-coded indicators (Green/Red), sparklines, and intuitive progress bars for achievements.
-- **Dark Mode Native**: Designed exclusively for dark mode to reduce eye strain and enhance the vibrancy of charts and indicators.
-
----
-
-## 🛠️ Technical Architecture
-
-### Core Stack
-- **Framework**: React Native 0.81 (Expo SDK 54)
-- **Language**: TypeScript (Strict Mode)
-- **State Management**: Zustand (Global Store + Persistence)
-- **Navigation**: Expo Router (File-based routing)
-- **Performance**: Shopify FlashList, React Native Reanimated
-- **Storage**: MMKV / AsyncStorage
-
-### Complex Implementations
-
-#### 1. The Market Engine (`useMarketEngine`)
-Instead of relying on static data, I built a custom simulation engine using **Geometric Brownian Motion**.
-- **Logic**: Calculates price movements based on volatility and drift.
-- **Optimization**: Updates are throttled to run outside the JS thread where possible, or batched to prevent UI thread blocking.
-- **Realism**: Includes "News Events" that inject shockwaves into the market, forcing the simulation to react dynamically.
-
-#### 2. Gamification System (`useStore`)
-A robust RPG-like layer sits on top of the trading mechanics.
-- **XP Algorithm**: `XP = (ActionBase * Multipliers) + Bonuses`. Rewards consistency (Login Streaks) and skill (Profit %).
-- **Achievement Engine**: A listener system that evaluates 100+ unique conditions (e.g., "Win Rate > 60%", "Hold for 30 days") in real-time without polling performance costs.
-
-#### 3. High-Performance Lists
-Rendering a list of 100 stocks with live-updating prices is expensive.
-- **Solution**: Implemented `@shopify/flash-list` with `estimatedItemSize` and `React.memo` on individual list items.
-- **Result**: Smooth scrolling at 60fps even during high-volatility market events.
+### 📱 App Features
+- **Onboarding Flow**: Immersive introduction to the app's features and initial capital allocation.
+- **News Feed**: Simulated market news updates affecting stock prices.
+- **Search & Discovery**: Unified search for stocks and crypto with "Trending Now" insights.
+- **Secure Storage**: Local persistence of user progress and portfolio using `zustand` and `AsyncStorage`.
 
 ---
 
-## 📱 Screen Breakdown
+## 🛠️ Tech Stack
 
-### 1. Portfolio Dashboard (`(tabs)/index.tsx`)
-The command center.
-- **Net Worth Chart**: Visualizes equity over time.
-- **Asset Allocation**: Breakdown of Stocks vs. Crypto vs. Cash.
-- **Quick Stats**: Horizontal scrollable metrics (Win Rate, Best Performer).
-
-### 2. Market Browser (`(tabs)/market.tsx`)
-- **Live Tickers**: Color-coded lists of Top Gainers, Losers, and Active stocks.
-- **Search**: Instant filtering by symbol or name.
-- **Sector Filtering**: Filter stocks by Technology, Finance, Energy, etc.
-
-### 3. Crypto Exchange (`(tabs)/crypto.tsx`)
-- **Leverage Trading**: Unique logic allowing 5x-20x leverage.
-- **Wallet Management**: Separate "Cold Wallet" simulation for crypto assets.
-- **Fear & Greed Index**: Dynamic indicator affecting market volatility.
-
-### 4. Leaderboard (`(tabs)/leaderboard.tsx`)
-- **Global Ranking**: Compete against mock "Elite Traders".
-- **Dynamic Sorting**: Ranks update in real-time based on Net Worth.
+- **Framework**: [React Native](https://reactnative.dev/) (0.76) via [Expo](https://expo.dev/) (SDK 52)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Routing**: [Expo Router](https://docs.expo.dev/router/introduction/) (v4)
+- **State Management**: [Zustand](https://github.com/pmndrs/zustand) (with persistence)
+- **Styling**: StyleSheet API + Custom Theme System
+- **Animations**: [React Native Reanimated](https://docs.swmansion.com/react-native-reanimated/)
+- **Gestures**: [React Native Gesture Handler](https://docs.swmansion.com/react-native-gesture-handler/)
+- **Charts**: [React Native Gifted Charts](https://github.com/Abhinandan-Kushwaha/react-native-gifted-charts)
+- **Icons**: [Lucide React Native](https://lucide.dev/guide/packages/lucide-react-native)
+- **Performance**: [@shopify/flash-list](https://github.com/Shopify/flash-list) for high-performance lists
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 20+
-- Expo CLI
+- [Node.js](https://nodejs.org/) (LTS recommended)
+- [npm](https://www.npmjs.com/) or [yarn](https://yarnpkg.com/)
+- [Expo Go](https://expo.dev/client) app on your iOS/Android device (or a simulator).
 
 ### Installation
-```bash
-git clone https://github.com/dtonderaiita8-png/PaperTrader.git
-cd PaperTrader
-npm install
-npx expo start
+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/yourusername/papertrader.git
+    cd papertrader
+    ```
+
+2.  **Install dependencies:**
+    ```bash
+    npm install
+    # or
+    yarn install
+    ```
+
+3.  **Start the development server:**
+    ```bash
+    npx expo start
+    ```
+
+4.  **Run on device:**
+    - Scan the QR code with the **Expo Go** app (Android) or Camera app (iOS).
+    - Press `a` for Android Emulator or `i` for iOS Simulator.
+
+---
+
+## 📂 Project Structure
+
+```
+PaperTrader/
+├── app/                 # Expo Router pages and layouts
+│   ├── (tabs)/          # Main tab navigation (Home, Portfolio, etc.)
+│   ├── crypto/          # Crypto detail pages
+│   ├── stock/           # Stock detail pages
+│   ├── onboarding.tsx   # Intro flow
+│   └── _layout.tsx      # Root layout and providers
+├── components/          # Reusable UI components
+│   ├── GlassCard.tsx    # Core UI container
+│   ├── TradeModal.tsx   # Trading interface
+│   └── ...
+├── constants/           # Static data and config
+│   ├── stocks.ts        # Stock market data
+│   ├── theme.ts         # Design tokens and themes
+│   └── ...
+├── hooks/               # Custom React hooks
+│   ├── useTheme.ts      # Theme consumption hook
+│   └── ...
+├── store/               # Zustand state stores
+│   ├── useStore.ts      # Main app state (User, Stocks)
+│   └── useCryptoStore.ts# Crypto specific state
+├── utils/               # Helper functions
+│   ├── analytics.ts     # Mock analytics
+│   └── haptics.ts       # Haptic feedback patterns
+└── assets/              # Images and fonts
 ```
 
-### Building for iOS
-This project uses **GitHub Actions** for CI/CD.
-- Commits to `main` trigger a build workflow.
-- Generates an unsigned `.ipa` for sideloading via AltStore.
-- See `README_GITHUB_ACTIONS.md` for the pipeline configuration.
+---
+
+## 🎨 Theming System
+
+PaperTrader features a robust theming system defined in `constants/theme.ts`. The app currently supports four themes:
+
+1.  **Midnight** (Default): Deep blacks and cyans.
+2.  **Ocean**: Slate blues and teals.
+3.  **Sunset**: Deep purples and pinks.
+4.  **Forest**: Dark greens and emeralds.
+
+Themes are applied globally using the `useTheme` hook, ensuring consistent styling across all components.
 
 ---
 
-## 🔮 Future Roadmap
+## 🚢 Deployment & CI/CD
 
-- [ ] **WebSocket Integration**: Replace simulation with real-time AlphaVantage/Polygon.io API.
-- [ ] **Social Trading**: Follow other users and copy-trade their portfolios.
-- [ ] **Options Chain**: Implement Call/Put options for advanced hedging strategies.
-- [ ] **Machine Learning**: AI-powered "Market Analyst" giving trade suggestions.
+This project is configured for automated builds using **GitHub Actions** and **Expo Application Services (EAS)**.
+
+### GitHub Actions
+The workflow in `.github/workflows/build-ios.yml` handles:
+1.  Checking out the code.
+2.  Setting up Node.js and dependencies.
+3.  Building the iOS IPA using `eas build --local`.
+4.  Uploading the artifact for download.
+
+For more details on the CI/CD pipeline, see [README_GITHUB_ACTIONS.md](./README_GITHUB_ACTIONS.md).
 
 ---
 
-## 👨‍💻 Author
+## 🤝 Contributing
 
-**Tonde**
-*Full Stack Mobile Developer*
+Contributions are welcome! Please follow these steps:
+1.  Fork the repository.
+2.  Create a feature branch (`git checkout -b feature/AmazingFeature`).
+3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`).
+4.  Push to the branch (`git push origin feature/AmazingFeature`).
+5.  Open a Pull Request.
 
 ---
 
-*This project is a showcase of advanced React Native capabilities, demonstrating that hybrid apps can achieve native-level performance and aesthetics.*
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+
+*Built with ❤️ by the PaperTrader Team*

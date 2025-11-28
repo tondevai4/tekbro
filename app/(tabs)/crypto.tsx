@@ -3,18 +3,23 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Animat
 import { FlashList } from '@shopify/flash-list';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Search, TrendingUp, TrendingDown, Zap, ArrowUpRight, ArrowDownRight, Activity, Wallet } from 'lucide-react-native';
+import { Search, TrendingUp, TrendingDown, Zap, ArrowUpRight, ArrowDownRight, Activity, Wallet, Skull, AlertTriangle, Flame, Rocket } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { useCryptoStore } from '../../store/useCryptoStore';
 import { useMarketMoodStore } from '../../store/useMarketMoodStore';
 import { CryptoCard } from '../../components/CryptoCard';
 import { PortfolioDetailModal } from '../../components/PortfolioDetailModal';
-import { FearGreedModal } from '../../components/FearGreedModal';
+import { CryptoFearGreedModal } from '../../components/CryptoFearGreedModal';
 import { COLORS, FONTS, SPACING, RADIUS } from '../../constants/theme';
 import { useCryptoEngine } from '../../hooks/useCryptoEngine';
 import { TransferModal } from '../../components/TransferModal';
 import { CryptoOnboardingModal } from '../../components/CryptoOnboardingModal';
 import { useStore } from '../../store/useStore';
+import { MarketCycleModal } from '../../components/MarketCycleModal';
+import { useTheme } from '../../hooks/useTheme';
+
+import { AppBackground } from '../../components/AppBackground';
 
 export default function CryptoScreen() {
     // Ensure engine is running
@@ -23,7 +28,14 @@ export default function CryptoScreen() {
     const router = useRouter();
     const { cryptos, cryptoHoldings, cryptoWallet } = useCryptoStore();
     const { cryptoOnboardingCompleted, setCryptoOnboardingCompleted } = useStore();
-    const { fearGreedIndex, getMoodLabel, getMoodColor, marketCyclePhase } = useMarketMoodStore();
+    const {
+        cryptoFearGreedIndex,
+        getCryptoMoodLabel,
+        getCryptoMoodColor,
+        marketCyclePhase,
+        cryptoDominance,
+        cryptoVolatility
+    } = useMarketMoodStore();
 
     const [searchQuery, setSearchQuery] = useState('');
     const [transferModalVisible, setTransferModalVisible] = useState(false);
@@ -31,6 +43,7 @@ export default function CryptoScreen() {
     const [onboardingVisible, setOnboardingVisible] = useState(false);
     const [portfolioModalVisible, setPortfolioModalVisible] = useState(false);
     const [fearGreedModalVisible, setFearGreedModalVisible] = useState(false);
+    const [cycleModalVisible, setCycleModalVisible] = useState(false);
 
     // Trigger onboarding
     React.useEffect(() => {
@@ -72,22 +85,24 @@ export default function CryptoScreen() {
         );
     }, [cryptos, searchQuery]);
 
+    const { theme } = useTheme();
+
     const getCyclePhaseColor = () => {
         switch (marketCyclePhase) {
-            case 'early': return '#00FF88';
-            case 'mid': return '#00CCFF';
-            case 'late': return '#FFD700';
-            case 'recession': return '#FF4444';
+            case 'accumulation': return '#00FF88';
+            case 'markup': return '#00CCFF';
+            case 'distribution': return '#FFD700';
+            case 'markdown': return '#FF4444';
             default: return '#888';
         }
     };
 
     const getCyclePhaseLabel = () => {
         switch (marketCyclePhase) {
-            case 'early': return 'Early Cycle';
-            case 'mid': return 'Mid Cycle';
-            case 'late': return 'Late Cycle';
-            case 'recession': return 'Recession';
+            case 'accumulation': return 'Accumulation';
+            case 'markup': return 'Markup';
+            case 'distribution': return 'Distribution';
+            case 'markdown': return 'Markdown';
             default: return 'Unknown';
         }
     };
@@ -103,48 +118,19 @@ export default function CryptoScreen() {
         </LinearGradient>
     );
 
-    const renderHeader = () => (
+    const renderListHeader = () => (
         <View style={styles.headerContainer}>
-            {/* Title + Market Indicators */}
-            <View style={styles.topBar}>
-                <View>
-                    <Text style={styles.headerTitle}>Crypto</Text>
-                    <Text style={styles.headerSubtitle}>Market Exchange</Text>
-                </View>
-
-                <View style={styles.indicators}>
-                    {/* Cycle Phase Badge */}
-                    <LinearGradient
-                        colors={[`${getCyclePhaseColor()}22`, `${getCyclePhaseColor()}11`]}
-                        style={styles.cycleBadge}
-                    >
-                        <Activity size={10} color={getCyclePhaseColor()} />
-                        <Text style={[styles.cycleText, { color: getCyclePhaseColor() }]}>
-                            {getCyclePhaseLabel().toUpperCase()}
-                        </Text>
-                    </LinearGradient>
-
-                    {/* Fear & Greed */}
-                    <TouchableOpacity onPress={() => setFearGreedModalVisible(true)}>
-                        <LinearGradient
-                            colors={[`${getMoodColor()}33`, `${getMoodColor()}11`]}
-                            style={styles.moodBadge}
-                        >
-                            <Zap size={12} color={getMoodColor()} fill={getMoodColor()} />
-                            <Text style={[styles.moodValue, { color: getMoodColor() }]}>
-                                {Math.round(fearGreedIndex)}
-                            </Text>
-                        </LinearGradient>
-                    </TouchableOpacity>
-                </View>
-            </View>
-
             {/* Portfolio Glass Card */}
             <TouchableOpacity onPress={() => {
                 setPortfolioModalVisible(true);
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             }}>
-                {renderGlassCard(
+                <LinearGradient
+                    colors={theme.cardGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[styles.glassCard, { marginBottom: SPACING.lg, borderColor: 'rgba(255,255,255,0.1)' }]}
+                >
                     <View style={styles.portfolioContent}>
                         <View style={styles.portfolioHeader}>
                             <View style={styles.walletIconContainer}>
@@ -156,8 +142,8 @@ export default function CryptoScreen() {
                                 </LinearGradient>
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.portfolioLabel}>TOTAL PORTFOLIO</Text>
-                                <Text style={styles.portfolioValue}>
+                                <Text style={[styles.portfolioLabel, { color: 'rgba(255,255,255,0.7)' }]}>TOTAL PORTFOLIO</Text>
+                                <Text style={[styles.portfolioValue, { color: theme.white }]}>
                                     £{portfolioValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </Text>
                             </View>
@@ -166,14 +152,14 @@ export default function CryptoScreen() {
                         <View style={styles.pnlContainer}>
                             <View style={styles.pnlRow}>
                                 {portfolioPnL >= 0 ? (
-                                    <ArrowUpRight size={16} color="#00FF88" />
+                                    <ArrowUpRight size={16} color={theme.positive} />
                                 ) : (
-                                    <ArrowDownRight size={16} color="#FF4444" />
+                                    <ArrowDownRight size={16} color={theme.negative} />
                                 )}
-                                <Text style={[styles.pnlText, { color: portfolioPnL >= 0 ? '#00FF88' : '#FF4444' }]}>
+                                <Text style={[styles.pnlText, { color: portfolioPnL >= 0 ? theme.positive : theme.negative }]}>
                                     {portfolioPnL >= 0 ? '+' : ''}£{Math.abs(portfolioPnL).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </Text>
-                                <Text style={[styles.pnlPercent, { color: portfolioPnL >= 0 ? '#00FF88' : '#FF4444' }]}>
+                                <Text style={[styles.pnlPercent, { color: portfolioPnL >= 0 ? theme.positive : theme.negative }]}>
                                     ({portfolioPnL >= 0 ? '+' : ''}{portfolioPnLPercent.toFixed(2)}%)
                                 </Text>
                             </View>
@@ -189,7 +175,7 @@ export default function CryptoScreen() {
                                 }}
                             >
                                 <LinearGradient
-                                    colors={['#00FF88', '#00CC66']}
+                                    colors={[theme.positive, theme.success]}
                                     style={styles.actionGradient}
                                 >
                                     <TrendingUp size={16} color="#000" />
@@ -213,134 +199,195 @@ export default function CryptoScreen() {
                                 </LinearGradient>
                             </TouchableOpacity>
                         </View>
-                    </View>,
-                    { marginBottom: SPACING.lg }
-                )}
+                    </View>
+                </LinearGradient>
             </TouchableOpacity>
 
             {/* Holdings Carousel */}
-            {Object.keys(cryptoHoldings).length > 0 && (
-                <View style={styles.holdingsSection}>
-                    <Text style={styles.sectionTitle}>YOUR POSITIONS</Text>
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.holdingsList}
-                    >
-                        {cryptos
-                            .filter(c => cryptoHoldings[c.symbol]?.quantity > 0)
-                            .map(crypto => {
-                                const holding = cryptoHoldings[crypto.symbol];
-                                const pnl = (crypto.price - holding.averageCost) * holding.quantity * holding.leverage;
-                                const pnlPercent = ((crypto.price - holding.averageCost) / holding.averageCost) * 100 * holding.leverage;
+            {
+                Object.keys(cryptoHoldings).length > 0 && (
+                    <View style={styles.holdingsSection}>
+                        <Text style={styles.sectionTitle}>YOUR POSITIONS</Text>
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.holdingsList}
+                        >
+                            {cryptos
+                                .filter(c => cryptoHoldings[c.symbol]?.quantity > 0)
+                                .map(crypto => {
+                                    const holding = cryptoHoldings[crypto.symbol];
+                                    const pnl = (crypto.price - holding.averageCost) * holding.quantity * holding.leverage;
+                                    const pnlPercent = ((crypto.price - holding.averageCost) / holding.averageCost) * 100 * holding.leverage;
 
-                                return (
-                                    <TouchableOpacity
-                                        key={crypto.symbol}
-                                        onPress={() => router.push(`/crypto/${crypto.symbol}`)}
-                                    >
-                                        {renderGlassCard(
-                                            <View style={styles.holdingCard}>
-                                                <View style={styles.holdingHeader}>
-                                                    <Text style={styles.holdingSymbol}>{crypto.symbol}</Text>
-                                                    {holding.leverage > 1 && (
-                                                        <View style={styles.leverageBadge}>
-                                                            <Text style={styles.leverageText}>{holding.leverage}x</Text>
-                                                        </View>
-                                                    )}
-                                                </View>
-                                                <Text style={styles.holdingValue}>
-                                                    £{(holding.quantity * crypto.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                                </Text>
-                                                <View style={styles.holdingPnl}>
-                                                    {pnl >= 0 ? (
-                                                        <TrendingUp size={12} color="#00FF88" />
-                                                    ) : (
-                                                        <TrendingDown size={12} color="#FF4444" />
-                                                    )}
-                                                    <Text style={[styles.holdingPnlText, { color: pnl >= 0 ? '#00FF88' : '#FF4444' }]}>
-                                                        {pnlPercent.toFixed(1)}%
+                                    return (
+                                        <TouchableOpacity
+                                            key={crypto.symbol}
+                                            onPress={() => router.push(`/crypto/${crypto.symbol}`)}
+                                        >
+                                            {renderGlassCard(
+                                                <View style={styles.holdingCard}>
+                                                    <View style={styles.holdingHeader}>
+                                                        <Text style={styles.holdingSymbol}>{crypto.symbol}</Text>
+                                                        {holding.leverage > 1 && (
+                                                            <View style={styles.leverageBadge}>
+                                                                <Text style={styles.leverageText}>{holding.leverage}x</Text>
+                                                            </View>
+                                                        )}
+                                                    </View>
+                                                    <Text style={styles.holdingValue}>
+                                                        £{(holding.quantity * crypto.price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                     </Text>
-                                                </View>
-                                            </View>,
-                                            { marginRight: SPACING.md, width: 140 }
-                                        )}
-                                    </TouchableOpacity>
-                                );
-                            })
-                        }
-                    </ScrollView>
-                </View>
-            )}
+                                                    <View style={styles.holdingPnl}>
+                                                        {pnl >= 0 ? (
+                                                            <TrendingUp size={12} color="#00FF88" />
+                                                        ) : (
+                                                            <TrendingDown size={12} color="#FF4444" />
+                                                        )}
+                                                        <Text style={[styles.holdingPnlText, { color: pnl >= 0 ? '#00FF88' : '#FF4444' }]}>
+                                                            {pnlPercent.toFixed(1)}%
+                                                        </Text>
+                                                    </View>
+                                                </View>,
+                                                { marginRight: SPACING.md, width: 140 }
+                                            )}
+                                        </TouchableOpacity>
+                                    );
+                                })
+                            }
+                        </ScrollView>
+                    </View>
+                )
+            }
 
             {/* Search Bar */}
-            {renderGlassCard(
-                <View style={styles.searchContent}>
-                    <Search size={18} color="rgba(255,255,255,0.5)" />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Search crypto..."
-                        placeholderTextColor="rgba(255,255,255,0.3)"
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                    />
-                </View>,
-                { marginBottom: SPACING.lg }
-            )}
+            {
+                renderGlassCard(
+                    <View style={styles.searchContent}>
+                        <Search size={18} color="rgba(255,255,255,0.5)" />
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Search crypto..."
+                            placeholderTextColor="rgba(255,255,255,0.3)"
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                        />
+                    </View>,
+                    { marginBottom: SPACING.lg }
+                )
+            }
 
             <Text style={styles.sectionTitle}>ALL MARKETS</Text>
-        </View>
+        </View >
     );
 
     const FlashListAny = FlashList as any;
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-            {/* Animated Background */}
-            <LinearGradient
-                colors={['#0A0A0F', '#1A0A2E', '#0A0A0F']}
-                style={StyleSheet.absoluteFill}
-            />
+        <AppBackground>
+            <SafeAreaView style={styles.container} edges={['top']}>
+                {/* Fixed Header */}
+                <View style={[styles.topBar, { paddingHorizontal: SPACING.md }]}>
+                    <View>
+                        <Text style={styles.headerTitle}>Crypto</Text>
+                        <Text style={styles.headerSubtitle}>Market Exchange</Text>
+                    </View>
 
-            <FlashListAny
-                data={filteredCryptos}
-                keyExtractor={(item: any) => item.symbol}
-                renderItem={({ item }: { item: any }) => <CryptoCard crypto={item} />}
-                ListHeaderComponent={renderHeader}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
-                estimatedItemSize={140}
-            />
+                    <View style={styles.indicators}>
+                        {/* Cycle Phase Badge */}
+                        <TouchableOpacity
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                setCycleModalVisible(true);
+                            }}
+                            style={{ zIndex: 99 }}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                            <LinearGradient
+                                colors={[`${getCyclePhaseColor()}22`, `${getCyclePhaseColor()}11`]}
+                                style={styles.cycleBadge}
+                            >
+                                <Activity size={10} color={getCyclePhaseColor()} />
+                                <Text style={[styles.cycleText, { color: getCyclePhaseColor() }]}>
+                                    {getCyclePhaseLabel().toUpperCase()}
+                                </Text>
+                            </LinearGradient>
+                        </TouchableOpacity>
 
-            <TransferModal
-                visible={transferModalVisible}
-                onClose={() => setTransferModalVisible(false)}
-                type={transferType}
-            />
+                        {/* Fear & Greed */}
+                        <TouchableOpacity
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                setFearGreedModalVisible(true);
+                            }}
+                            style={{ zIndex: 99 }}
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        >
+                            <LinearGradient
+                                colors={[`${getCryptoMoodColor()}33`, `${getCryptoMoodColor()}11`]}
+                                style={styles.moodBadge}
+                            >
+                                {(() => {
+                                    if (cryptoFearGreedIndex <= 20) return <Skull size={12} color={getCryptoMoodColor()} />;
+                                    if (cryptoFearGreedIndex <= 40) return <AlertTriangle size={12} color={getCryptoMoodColor()} />;
+                                    if (cryptoFearGreedIndex <= 60) return <Zap size={12} color={getCryptoMoodColor()} fill={getCryptoMoodColor()} />;
+                                    if (cryptoFearGreedIndex <= 80) return <Flame size={12} color={getCryptoMoodColor()} />;
+                                    return <Rocket size={12} color={getCryptoMoodColor()} />;
+                                })()}
+                                <Text style={[styles.moodValue, { color: getCryptoMoodColor() }]}>
+                                    {Math.round(cryptoFearGreedIndex)}
+                                </Text>
+                            </LinearGradient>
+                        </TouchableOpacity>
+                    </View>
+                </View>
 
-            <CryptoOnboardingModal
-                visible={onboardingVisible}
-                onClose={() => {
-                    setOnboardingVisible(false);
-                    setCryptoOnboardingCompleted(true);
-                }}
-            />
+                <FlashListAny
+                    data={filteredCryptos}
+                    keyExtractor={(item: any) => item.symbol}
+                    renderItem={({ item }: { item: any }) => <CryptoCard crypto={item} />}
+                    ListHeaderComponent={renderListHeader}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
+                    estimatedItemSize={140}
+                />
 
-            <PortfolioDetailModal
-                visible={portfolioModalVisible}
-                onClose={() => setPortfolioModalVisible(false)}
-                type="crypto"
-            />
+                <TransferModal
+                    visible={transferModalVisible}
+                    onClose={() => setTransferModalVisible(false)}
+                    type={transferType}
+                />
 
-            <FearGreedModal
-                visible={fearGreedModalVisible}
-                onClose={() => setFearGreedModalVisible(false)}
-                fearGreedIndex={fearGreedIndex}
-                getMoodColor={getMoodColor}
-                getMoodLabel={getMoodLabel}
-                marketCyclePhase={marketCyclePhase}
-            />
-        </SafeAreaView>
+                <CryptoOnboardingModal
+                    visible={onboardingVisible}
+                    onClose={() => {
+                        setOnboardingVisible(false);
+                        setCryptoOnboardingCompleted(true);
+                    }}
+                />
+
+                <PortfolioDetailModal
+                    visible={portfolioModalVisible}
+                    onClose={() => setPortfolioModalVisible(false)}
+                    type="crypto"
+                />
+
+                <MarketCycleModal
+                    visible={cycleModalVisible}
+                    onClose={() => setCycleModalVisible(false)}
+                    phase={marketCyclePhase}
+                    type="crypto"
+                    cryptoDominance={cryptoDominance}
+                    cryptoVolatility={cryptoVolatility}
+                />
+
+                <CryptoFearGreedModal
+                    visible={fearGreedModalVisible}
+                    onClose={() => setFearGreedModalVisible(false)}
+                />
+
+            </SafeAreaView>
+        </AppBackground>
     );
 }
 
@@ -360,6 +407,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'flex-start',
         marginBottom: SPACING.xl,
+        zIndex: 10,
     },
     headerTitle: {
         fontSize: 36,

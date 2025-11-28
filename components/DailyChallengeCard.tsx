@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { DailyChallenge } from '../types';
 import { COLORS, FONTS, SPACING } from '../constants/theme';
 import * as Haptics from 'expo-haptics';
@@ -21,69 +22,76 @@ export function DailyChallengeCard({ challenge }: Props) {
 
     return (
         <TouchableOpacity
-            style={[
-                styles.container,
-                isComplete && styles.containerComplete
-            ]}
             onPress={handlePress}
-            activeOpacity={0.8}
+            activeOpacity={0.9}
+            style={{ marginBottom: SPACING.xl }}
         >
-            {/* Header */}
-            <View style={styles.header}>
-                <View style={styles.labelContainer}>
-                    <Zap size={14} color={COLORS.warning} fill={COLORS.warning} />
-                    <Text style={styles.label}>DAILY CHALLENGE</Text>
-                </View>
-                {isComplete && (
-                    <View style={styles.completeBadge}>
-                        <Text style={styles.completeText}>✓ COMPLETE</Text>
+            <LinearGradient
+                colors={isComplete ? [COLORS.success, '#059669'] : [COLORS.warning, '#d97706']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.gradientBorder, { opacity: isComplete ? 1 : 0.7 }]}
+            >
+                <View style={styles.innerContainer}>
+                    {/* Header */}
+                    <View style={styles.header}>
+                        <View style={styles.labelContainer}>
+                            <Zap size={14} color={isComplete ? COLORS.success : COLORS.warning} fill={isComplete ? COLORS.success : COLORS.warning} />
+                            <Text style={[styles.label, { color: isComplete ? COLORS.success : COLORS.warning }]}>
+                                {isComplete ? 'CHALLENGE COMPLETE' : 'DAILY CHALLENGE'}
+                            </Text>
+                        </View>
+                        {isComplete && (
+                            <View style={styles.checkBadge}>
+                                <Text style={styles.checkText}>✓</Text>
+                            </View>
+                        )}
                     </View>
-                )}
-            </View>
 
-            {/* Title */}
-            <Text style={styles.title}>{challenge.title}</Text>
-            <Text style={styles.description}>{challenge.description}</Text>
+                    {/* Title */}
+                    <Text style={styles.title}>{challenge.title}</Text>
+                    <Text style={styles.description}>{challenge.description}</Text>
 
-            {/* Progress Bar */}
-            <View style={styles.progressContainer}>
-                <View style={styles.progressBar}>
-                    <View
-                        style={[
-                            styles.progressFill,
-                            { width: `${progress}%` },
-                            isComplete && styles.progressComplete
-                        ]}
-                    />
+                    {/* Progress Bar */}
+                    <View style={styles.progressContainer}>
+                        <View style={styles.progressBar}>
+                            <LinearGradient
+                                colors={isComplete ? [COLORS.success, '#34d399'] : [COLORS.warning, '#fbbf24']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={[
+                                    styles.progressFill,
+                                    { width: `${progress}%` }
+                                ]}
+                            />
+                        </View>
+                        <Text style={styles.progressText}>
+                            {challenge.progress.toFixed(0)} / {challenge.target}
+                        </Text>
+                    </View>
+
+                    {/* Rewards */}
+                    <View style={styles.rewardContainer}>
+                        <Text style={styles.rewardLabel}>REWARD</Text>
+                        <Text style={[styles.rewardText, { color: isComplete ? COLORS.success : COLORS.warning }]}>
+                            +{challenge.reward.xp} XP{challenge.reward.cash && ` · +$${challenge.reward.cash}`}
+                        </Text>
+                    </View>
                 </View>
-                <Text style={styles.progressText}>
-                    {challenge.progress.toFixed(0)} / {challenge.target}
-                </Text>
-            </View>
-
-            {/* Rewards */}
-            <View style={styles.rewardContainer}>
-                <Text style={styles.rewardLabel}>REWARD:</Text>
-                <Text style={styles.rewardText}>
-                    +{challenge.reward.xp} XP{challenge.reward.cash && ` · +$${challenge.reward.cash}`}
-                </Text>
-            </View>
+            </LinearGradient>
         </TouchableOpacity>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        backgroundColor: COLORS.card,
-        borderRadius: 12,
-        padding: SPACING.lg,
-        marginBottom: SPACING.xl,
-        borderWidth: 2,
-        borderColor: COLORS.warning + '40',
+    gradientBorder: {
+        borderRadius: 16,
+        padding: 1.5, // Thickness of the gradient border
     },
-    containerComplete: {
-        borderColor: COLORS.success,
-        backgroundColor: COLORS.successDim,
+    innerContainer: {
+        backgroundColor: COLORS.card,
+        borderRadius: 15, // Slightly less than border radius
+        padding: SPACING.lg,
     },
     header: {
         flexDirection: 'row',
@@ -97,70 +105,65 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     label: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: COLORS.warning,
+        fontSize: 11,
+        fontWeight: '800',
         fontFamily: FONTS.bold,
-        letterSpacing: 1,
+        letterSpacing: 1.5,
     },
-    completeBadge: {
-        backgroundColor: COLORS.success,
-        paddingHorizontal: SPACING.sm,
-        paddingVertical: 4,
-        borderRadius: 6,
+    checkBadge: {
+        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    completeText: {
-        fontSize: 10,
-        fontWeight: '700',
-        color: COLORS.background,
-        fontFamily: FONTS.bold,
-        letterSpacing: 0.5,
+    checkText: {
+        color: COLORS.success,
+        fontSize: 12,
+        fontWeight: 'bold',
     },
     title: {
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: '700',
         color: COLORS.text,
         fontFamily: FONTS.bold,
-        marginBottom: SPACING.xs,
+        marginBottom: 4,
     },
     description: {
         fontSize: 14,
         color: COLORS.textSecondary,
         fontFamily: FONTS.regular,
         marginBottom: SPACING.lg,
+        lineHeight: 20,
     },
     progressContainer: {
-        marginBottom: SPACING.md,
+        marginBottom: SPACING.lg,
     },
     progressBar: {
-        height: 8,
-        backgroundColor: COLORS.borderLight,
-        borderRadius: 4,
+        height: 6,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        borderRadius: 3,
         overflow: 'hidden',
-        marginBottom: SPACING.sm,
+        marginBottom: 8,
     },
     progressFill: {
         height: '100%',
-        backgroundColor: COLORS.warning,
-        borderRadius: 4,
-    },
-    progressComplete: {
-        backgroundColor: COLORS.success,
+        borderRadius: 3,
     },
     progressText: {
         fontSize: 12,
-        color: COLORS.textSecondary,
-        fontFamily: FONTS.semibold,
-        textAlign: 'center',
+        color: COLORS.textTertiary,
+        fontFamily: FONTS.medium,
+        textAlign: 'right',
     },
     rewardContainer: {
         flexDirection: 'row',
-        justifyContent: 'center',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        gap: SPACING.sm,
         paddingTop: SPACING.md,
         borderTopWidth: 1,
-        borderTopColor: COLORS.borderLight,
+        borderTopColor: 'rgba(255,255,255,0.05)',
     },
     rewardLabel: {
         fontSize: 11,
@@ -170,9 +173,8 @@ const styles = StyleSheet.create({
         letterSpacing: 1,
     },
     rewardText: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: COLORS.primary,
+        fontSize: 16,
+        fontWeight: '800',
         fontFamily: FONTS.bold,
     },
 });

@@ -1,28 +1,30 @@
 import { Tabs } from 'expo-router';
-import { Home, TrendingUp, Clock, Trophy, Zap } from 'lucide-react-native';
-import { COLORS, FONTS } from '../../constants/theme';
+import { Home, TrendingUp, Settings, Trophy, Zap, Clock } from 'lucide-react-native';
 import { View } from 'react-native';
+import { useTheme } from '../../hooks/useTheme';
 
 export default function TabLayout() {
+    const { theme } = useTheme();
+
     return (
         <Tabs
             screenOptions={{
                 headerShown: false,
-                tabBarActiveTintColor: COLORS.primary,
-                tabBarInactiveTintColor: COLORS.textSecondary,
+                tabBarActiveTintColor: theme.primary,
+                tabBarInactiveTintColor: theme.textSecondary,
+                tabBarShowLabel: false, // Remove labels
                 tabBarStyle: {
-                    backgroundColor: COLORS.card,
-                    borderTopColor: COLORS.border,
-                    height: 60,
-                    paddingBottom: 8,
-                    paddingTop: 8,
+                    backgroundColor: theme.card,
+                    borderTopColor: theme.border,
+                    height: 80, // Taller for better centering
+                    paddingTop: 10,
                 },
-                tabBarLabelStyle: {
-                    fontFamily: FONTS.medium,
-                    fontSize: 12,
+                tabBarItemStyle: {
+                    justifyContent: 'center',
+                    alignItems: 'center',
                 },
                 tabBarBackground: () => (
-                    <View style={{ flex: 1, backgroundColor: COLORS.card }} />
+                    <View style={{ flex: 1, backgroundColor: theme.card }} />
                 ),
             }}
         >
@@ -34,7 +36,7 @@ export default function TabLayout() {
                         <Home
                             size={24}
                             color={color}
-                            style={focused ? { shadowColor: COLORS.primary, shadowRadius: 10, shadowOpacity: 0.5 } : {}}
+                            style={focused ? { shadowColor: theme.primary, shadowRadius: 10, shadowOpacity: 0.5 } : {}}
                         />
                     ),
                 }}
@@ -47,7 +49,7 @@ export default function TabLayout() {
                         <TrendingUp
                             size={24}
                             color={color}
-                            style={focused ? { shadowColor: COLORS.primary, shadowRadius: 10, shadowOpacity: 0.5 } : {}}
+                            style={focused ? { shadowColor: theme.primary, shadowRadius: 10, shadowOpacity: 0.5 } : {}}
                         />
                     ),
                 }}
@@ -60,7 +62,7 @@ export default function TabLayout() {
                         <Zap
                             size={24}
                             color={color}
-                            style={focused ? { shadowColor: COLORS.primary, shadowRadius: 10, shadowOpacity: 0.5 } : {}}
+                            style={focused ? { shadowColor: theme.primary, shadowRadius: 10, shadowOpacity: 0.5 } : {}}
                         />
                     ),
                 }}
@@ -73,7 +75,7 @@ export default function TabLayout() {
                         <Trophy
                             size={24}
                             color={color}
-                            style={focused ? { shadowColor: COLORS.primary, shadowRadius: 10, shadowOpacity: 0.5 } : {}}
+                            style={focused ? { shadowColor: theme.primary, shadowRadius: 10, shadowOpacity: 0.5 } : {}}
                         />
                     ),
                 }}
@@ -86,7 +88,20 @@ export default function TabLayout() {
                         <Clock
                             size={24}
                             color={color}
-                            style={focused ? { shadowColor: COLORS.primary, shadowRadius: 10, shadowOpacity: 0.5 } : {}}
+                            style={focused ? { shadowColor: theme.primary, shadowRadius: 10, shadowOpacity: 0.5 } : {}}
+                        />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="settings"
+                options={{
+                    title: 'Settings',
+                    tabBarIcon: ({ color, focused }) => (
+                        <Settings
+                            size={24}
+                            color={color}
+                            style={focused ? { shadowColor: theme.primary, shadowRadius: 10, shadowOpacity: 0.5 } : {}}
                         />
                     ),
                 }}

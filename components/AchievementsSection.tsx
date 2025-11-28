@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Achievement } from '../types';
 import { AchievementGrid } from './AchievementGrid';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
-import { X, Trophy } from 'lucide-react-native';
+import { X, Trophy, ChevronRight } from 'lucide-react-native';
 import { AchievementCardSkeleton } from './LoadingSkeleton';
 import { AchievementDetailModal } from './AchievementDetailModal';
 import * as Haptics from 'expo-haptics';
@@ -13,13 +13,20 @@ interface Props {
     achievements: Achievement[];
 }
 
+const formatNumber = (num: number) => {
+    if (num >= 1000000000) return (num / 1000000000).toFixed(1) + 'B';
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'k';
+    return num.toString();
+};
+
 export const AchievementsSection = React.memo(function AchievementsSection({ achievements }: Props) {
     const [viewAllVisible, setViewAllVisible] = useState(false);
     const [detailModalVisible, setDetailModalVisible] = useState(false);
     const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
     const [selectedCategory, setSelectedCategory] = useState('All');
 
-    const categories = ['All', 'Trading', 'Portfolio', 'Social', 'Milestones'];
+    const categories = ['All', 'Wealth', 'Trading', 'Mastery', 'Risk', 'Secret'];
 
     const filteredAchievements = React.useMemo(() => {
         if (selectedCategory === 'All') return achievements;
@@ -38,64 +45,41 @@ export const AchievementsSection = React.memo(function AchievementsSection({ ach
     const sections = React.useMemo(() => [
         {
             title: 'Gold Tier 🏆',
-            data: achievements.filter(a => a.tier === 'gold'),
-            color: '#EAB308'
+            data: filteredAchievements.filter(a => a.tier === 'gold'),
+            color: '#FFD700'
         },
         {
             title: 'Silver Tier 🥈',
-            data: achievements.filter(a => a.tier === 'silver'),
-            color: '#94A3B8'
+            data: filteredAchievements.filter(a => a.tier === 'silver'),
+            color: '#C0C0C0'
         },
         {
             title: 'Bronze Tier 🥉',
-            data: achievements.filter(a => a.tier === 'bronze'),
-            color: '#A16207'
+            data: filteredAchievements.filter(a => a.tier === 'bronze'),
+            color: '#CD7F32'
         }
-    ], [achievements]);
+    ], [filteredAchievements]);
 
     return (
         <View style={styles.container}>
+            {/* Header */}
             <View style={styles.header}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={styles.headerLeft}>
                     <Text style={styles.title}>Achievements</Text>
                     <View style={styles.badge}>
                         <Text style={styles.badgeText}>{unlockedCount}/{totalCount}</Text>
                     </View>
                 </View>
-                <TouchableOpacity onPress={() => setViewAllVisible(true)}>
+                <TouchableOpacity
+                    onPress={() => setViewAllVisible(true)}
+                    style={styles.seeAllButton}
+                >
                     <Text style={styles.seeAll}>View All</Text>
+                    <ChevronRight size={16} color={COLORS.accent} />
                 </TouchableOpacity>
             </View>
 
-            {/* Category Filters */}
-            <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.filterContainer}
-                style={styles.filterScroll}
-            >
-                {categories.map(cat => (
-                    <TouchableOpacity
-                        key={cat}
-                        onPress={() => {
-                            Haptics.selectionAsync();
-                            setSelectedCategory(cat);
-                        }}
-                        style={[
-                            styles.filterPill,
-                            selectedCategory === cat && styles.filterPillActive
-                        ]}
-                    >
-                        <Text style={[
-                            styles.filterText,
-                            selectedCategory === cat && styles.filterTextActive
-                        ]}>
-                            {cat}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
-            </ScrollView>
-
+            {/* Grid Preview */}
             {achievements.length === 0 ? (
                 <View style={{ flexDirection: 'row', gap: SPACING.md, paddingHorizontal: SPACING.lg }}>
                     <AchievementCardSkeleton />
@@ -104,11 +88,12 @@ export const AchievementsSection = React.memo(function AchievementsSection({ ach
                 </View>
             ) : (
                 <AchievementGrid
-                    achievements={filteredAchievements}
+                    achievements={achievements}
                     onAchievementPress={handleAchievementPress}
                 />
             )}
 
+            {/* View All Modal */}
             <Modal
                 visible={viewAllVisible}
                 animationType="slide"
@@ -119,7 +104,9 @@ export const AchievementsSection = React.memo(function AchievementsSection({ ach
                     <View style={styles.modalHeader}>
                         <View style={styles.headerTop}>
                             <View style={styles.modalTitleContainer}>
-                                <Trophy size={28} color={COLORS.accent} />
+                                <View style={styles.trophyIcon}>
+                                    <Trophy size={24} color="#FFD700" />
+                                </View>
                                 <View>
                                     <Text style={styles.modalTitle}>Achievements</Text>
                                     <Text style={styles.modalSubtitle}>
@@ -138,7 +125,10 @@ export const AchievementsSection = React.memo(function AchievementsSection({ ach
                         {/* Progress Bar */}
                         <View style={styles.totalProgressContainer}>
                             <View style={styles.totalProgressBar}>
-                                <View
+                                <LinearGradient
+                                    colors={[COLORS.accent, '#4F46E5']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
                                     style={[
                                         styles.totalProgressFill,
                                         { width: `${(unlockedCount / totalCount) * 100}%` }
@@ -146,6 +136,43 @@ export const AchievementsSection = React.memo(function AchievementsSection({ ach
                                 />
                             </View>
                         </View>
+
+                        {/* Category Filters */}
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.filterContainer}
+                            style={styles.filterScroll}
+                        >
+                            {categories.map(cat => (
+                                <TouchableOpacity
+                                    key={cat}
+                                    onPress={() => {
+                                        Haptics.selectionAsync();
+                                        setSelectedCategory(cat);
+                                    }}
+                                    style={[
+                                        styles.filterPill,
+                                        selectedCategory === cat && styles.filterPillActive
+                                    ]}
+                                >
+                                    {selectedCategory === cat && (
+                                        <LinearGradient
+                                            colors={[COLORS.accent, '#4F46E5']}
+                                            start={{ x: 0, y: 0 }}
+                                            end={{ x: 1, y: 0 }}
+                                            style={StyleSheet.absoluteFillObject}
+                                        />
+                                    )}
+                                    <Text style={[
+                                        styles.filterText,
+                                        selectedCategory === cat && styles.filterTextActive
+                                    ]}>
+                                        {cat}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
                     </View>
 
                     <SectionList
@@ -153,10 +180,12 @@ export const AchievementsSection = React.memo(function AchievementsSection({ ach
                         keyExtractor={(item) => item.id}
                         contentContainerStyle={styles.listContent}
                         stickySectionHeadersEnabled={false}
-                        renderSectionHeader={({ section: { title, color } }) => (
-                            <View style={styles.sectionHeader}>
-                                <Text style={[styles.sectionHeaderText, { color }]}>{title}</Text>
-                            </View>
+                        renderSectionHeader={({ section: { title, color, data } }) => (
+                            data.length > 0 ? (
+                                <View style={styles.sectionHeader}>
+                                    <Text style={[styles.sectionHeaderText, { color }]}>{title}</Text>
+                                </View>
+                            ) : null
                         )}
                         renderItem={({ item }) => (
                             <TouchableOpacity
@@ -164,14 +193,14 @@ export const AchievementsSection = React.memo(function AchievementsSection({ ach
                                 onPress={() => handleAchievementPress(item)}
                                 activeOpacity={0.7}
                             >
-                                {item.unlocked ? (
-                                    <LinearGradient
-                                        colors={['#000000', '#003300']} // Black to Deep Green
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 1 }}
-                                        style={StyleSheet.absoluteFillObject}
-                                    />
-                                ) : null}
+                                <LinearGradient
+                                    colors={item.unlocked
+                                        ? ['rgba(255,255,255,0.08)', 'rgba(255,255,255,0.02)']
+                                        : ['rgba(255,255,255,0.02)', 'transparent']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    style={StyleSheet.absoluteFillObject}
+                                />
 
                                 <View style={[styles.iconContainer, !item.unlocked && styles.iconLocked]}>
                                     <Text style={styles.icon}>{item.icon}</Text>
@@ -204,7 +233,7 @@ export const AchievementsSection = React.memo(function AchievementsSection({ ach
                                                 />
                                             </View>
                                             <Text style={styles.progressText}>
-                                                {(item.progress ?? 0).toFixed(0)} / {item.target}
+                                                {formatNumber(item.progress ?? 0)} / {formatNumber(item.target ?? 0)}
                                             </Text>
                                         </View>
                                     )}
@@ -235,23 +264,36 @@ const styles = StyleSheet.create({
         paddingHorizontal: SPACING.lg,
         marginBottom: SPACING.md,
     },
+    headerLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
     title: {
-        fontSize: 18,
+        fontSize: 20,
         fontWeight: '700',
         color: COLORS.text,
         fontFamily: FONTS.bold,
+        letterSpacing: 0.5,
     },
     badge: {
-        backgroundColor: COLORS.bgSubtle,
+        backgroundColor: 'rgba(255,255,255,0.1)',
         paddingHorizontal: 8,
         paddingVertical: 2,
         borderRadius: 12,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
     },
     badgeText: {
         fontSize: 12,
         fontWeight: '600',
         color: COLORS.textSecondary,
         fontFamily: FONTS.semibold,
+    },
+    seeAllButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
     },
     seeAll: {
         fontSize: 14,
@@ -261,14 +303,14 @@ const styles = StyleSheet.create({
     },
     modalContainer: {
         flex: 1,
-        backgroundColor: COLORS.background,
+        backgroundColor: '#0F172A', // Deep dark blue/slate
     },
     modalHeader: {
         padding: SPACING.lg,
         paddingTop: SPACING.xl,
-        backgroundColor: COLORS.bgElevated,
+        backgroundColor: 'rgba(30, 41, 59, 0.8)', // Semi-transparent slate
         borderBottomWidth: 1,
-        borderBottomColor: COLORS.border,
+        borderBottomColor: 'rgba(255,255,255,0.1)',
     },
     headerTop: {
         flexDirection: 'row',
@@ -280,6 +322,16 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
+    },
+    trophyIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255, 215, 0, 0.1)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 215, 0, 0.2)',
     },
     modalTitle: {
         fontSize: 24,
@@ -294,21 +346,22 @@ const styles = StyleSheet.create({
     },
     closeButton: {
         padding: SPACING.sm,
-        backgroundColor: COLORS.bgSubtle,
+        backgroundColor: 'rgba(255,255,255,0.1)',
         borderRadius: 20,
     },
     totalProgressContainer: {
         marginTop: SPACING.xs,
+        marginBottom: SPACING.lg,
     },
     totalProgressBar: {
         height: 6,
-        backgroundColor: COLORS.bgSubtle,
+        backgroundColor: 'rgba(255,255,255,0.1)',
         borderRadius: 3,
         overflow: 'hidden',
     },
     totalProgressFill: {
         height: '100%',
-        backgroundColor: COLORS.accent,
+        borderRadius: 3,
     },
     listContent: {
         padding: SPACING.lg,
@@ -318,7 +371,6 @@ const styles = StyleSheet.create({
     sectionHeader: {
         paddingVertical: SPACING.md,
         marginTop: SPACING.sm,
-        backgroundColor: COLORS.background, // Sticky header bg
     },
     sectionHeaderText: {
         fontSize: 18,
@@ -328,29 +380,29 @@ const styles = StyleSheet.create({
     },
     card: {
         flexDirection: 'row',
-        backgroundColor: COLORS.bgElevated,
+        backgroundColor: 'rgba(30, 41, 59, 0.5)',
         padding: SPACING.md,
         borderRadius: RADIUS.lg,
         borderWidth: 1,
-        borderColor: COLORS.border,
+        borderColor: 'rgba(255,255,255,0.1)',
         gap: SPACING.md,
         marginBottom: SPACING.sm,
-        overflow: 'hidden', // Required for gradient
+        overflow: 'hidden',
     },
     cardLocked: {
-        // No special style needed, just default
+        opacity: 0.8,
+        borderColor: 'rgba(255,255,255,0.05)',
     },
     iconContainer: {
         width: 48,
         height: 48,
         borderRadius: RADIUS.md,
-        backgroundColor: COLORS.bgSubtle,
+        backgroundColor: 'rgba(255,255,255,0.05)',
         alignItems: 'center',
         justifyContent: 'center',
     },
     iconLocked: {
         opacity: 0.3,
-        backgroundColor: COLORS.bg,
     },
     icon: {
         fontSize: 24,
@@ -382,15 +434,17 @@ const styles = StyleSheet.create({
         lineHeight: 18,
     },
     xpBadge: {
-        backgroundColor: COLORS.accent,
+        backgroundColor: 'rgba(79, 70, 229, 0.2)', // Indigo tint
         paddingHorizontal: 8,
         paddingVertical: 2,
         borderRadius: 4,
+        borderWidth: 1,
+        borderColor: 'rgba(79, 70, 229, 0.4)',
     },
     xpText: {
         fontSize: 10,
         fontWeight: '700',
-        color: '#000',
+        color: '#818CF8', // Indigo-400
         fontFamily: FONTS.bold,
     },
     progressContainer: {
@@ -401,45 +455,47 @@ const styles = StyleSheet.create({
     progressBar: {
         flex: 1,
         height: 4,
-        backgroundColor: COLORS.bg,
+        backgroundColor: 'rgba(255,255,255,0.1)',
         borderRadius: 2,
         overflow: 'hidden',
     },
     progressFill: {
         height: '100%',
-        backgroundColor: COLORS.accent,
+        backgroundColor: COLORS.textMuted,
     },
     progressText: {
         fontSize: 11,
         color: COLORS.textMuted,
         fontFamily: FONTS.medium,
+        minWidth: 60,
+        textAlign: 'right',
     },
     filterScroll: {
-        marginBottom: SPACING.md,
+        marginBottom: SPACING.xs,
     },
     filterContainer: {
-        paddingHorizontal: SPACING.lg,
         gap: 8,
     },
     filterPill: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 16,
-        backgroundColor: COLORS.bgElevated,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.05)',
         borderWidth: 1,
-        borderColor: COLORS.border,
+        borderColor: 'rgba(255,255,255,0.1)',
+        overflow: 'hidden',
     },
     filterPillActive: {
-        backgroundColor: COLORS.accent,
         borderColor: COLORS.accent,
     },
     filterText: {
-        fontSize: 12,
+        fontSize: 13,
         color: COLORS.textSecondary,
         fontFamily: FONTS.medium,
     },
     filterTextActive: {
-        color: '#000',
+        color: '#FFF',
+        fontWeight: '700',
         fontFamily: FONTS.bold,
     },
 });

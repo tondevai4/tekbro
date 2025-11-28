@@ -1,37 +1,10 @@
 import { create } from 'zustand';
-import { createJSONStorage, persist, StateStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createJSONStorage, persist } from 'zustand/middleware';
+import { zustandStorage } from '../utils/storage';
 import { Crypto, CryptoHolding, Trade } from '../types';
 import * as Haptics from 'expo-haptics';
 import { Alert } from 'react-native';
 import { analytics } from '../utils/analytics';
-
-// Error-safe AsyncStorage wrapper
-const asyncStorageWrapper: StateStorage = {
-    getItem: async (name: string): Promise<string | null> => {
-        try {
-            const value = await AsyncStorage.getItem(name);
-            return value;
-        } catch (error) {
-            console.error('AsyncStorage getItem error:', error);
-            return null;
-        }
-    },
-    setItem: async (name: string, value: string): Promise<void> => {
-        try {
-            await AsyncStorage.setItem(name, value);
-        } catch (error) {
-            console.error('AsyncStorage setItem error:', error);
-        }
-    },
-    removeItem: async (name: string): Promise<void> => {
-        try {
-            await AsyncStorage.removeItem(name);
-        } catch (error) {
-            console.error('AsyncStorage removeItem error:', error);
-        }
-    },
-};
 
 interface CryptoStore {
     // State
@@ -54,9 +27,16 @@ interface CryptoStore {
     updateCryptoPrices: (updates: Record<string, number>) => void;
     checkCryptoLiquidation: () => void;
 
-    // Utility
+    // V2 Engine State
+    marketPhase: 'ACCUMULATION' | 'BULL_RUN' | 'EUPHORIA' | 'CORRECTION' | 'BEAR_WINTER';
+    setMarketPhase: (phase: 'ACCUMULATION' | 'BULL_RUN' | 'EUPHORIA' | 'CORRECTION' | 'BEAR_WINTER') => void;
+    dailyReset: () => void;
+
+    // Getters
     getTotalCryptoValue: () => number;
-    reset: () => void;
+
+    // Reset
+    resetCrypto: () => void;
 }
 
 // Helper to get main store cash (we'll need to import useStore in components)
@@ -88,13 +68,12 @@ const INITIAL_CRYPTO_WALLET = 10000;
 export const useCryptoStore = create<CryptoStore>()(
     persist(
         (set, get) => ({
-            // Initial state
             cryptoWallet: INITIAL_CRYPTO_WALLET,
             cryptos: [],
             cryptoHoldings: {},
             cryptoTrades: [],
+            marketPhase: 'ACCUMULATION',
 
-            // 🏦 WALLET TRANSFERS
             transferToCrypto: (amount) => {
                 const mainCash = getMainStoreCash();
                 const { cryptoWallet } = get();
@@ -104,7 +83,6 @@ export const useCryptoStore = create<CryptoStore>()(
                     return;
                 }
 
-                // Deduct from main wallet and add to crypto wallet
                 setMainStoreCash(mainCash - amount);
                 set({ cryptoWallet: cryptoWallet + amount });
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -119,27 +97,22 @@ export const useCryptoStore = create<CryptoStore>()(
                     return;
                 }
 
-                // Add to main wallet and deduct from crypto wallet
                 setMainStoreCash(mainCash + amount);
                 set({ cryptoWallet: cryptoWallet - amount });
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             },
 
-            // 💰 BUY CRYPTO WITH LEVERAGE
-            buyCrypto: (symbol, quantity, price, leverage) => {
+            buyCrypto: (symbol, quantity, price, leverage = 1) => {
                 const { cryptoWallet, cryptoHoldings, cryptoTrades } = get();
-                const totalCost = (quantity * price) / leverage; // Leverage reduces capital required
+                const totalCost = (quantity * price) / leverage;
 
                 if (cryptoWallet < totalCost) {
                     Alert.alert('Insufficient Balance', 'Not enough crypto wallet balance.');
                     return;
                 }
 
-                // Calculate liquidation price for leveraged positions
                 let liquidationPrice: number | undefined;
                 if (leverage > 1) {
-                    // Liquidation when loss = initial margin
-                    // For long: liquidationPrice = entryPrice * (1 - 1/leverage)
                     liquidationPrice = price * (1 - 1 / leverage);
                 }
 
@@ -147,7 +120,6 @@ export const useCryptoStore = create<CryptoStore>()(
                 let newHolding: CryptoHolding;
 
                 if (existingHolding) {
-                    // Average down the position
                     const totalQuantity = existingHolding.quantity + quantity;
                     const totalCostBasis = (existingHolding.averageCost * existingHolding.quantity) + (price * quantity);
                     newHolding = {
@@ -182,7 +154,7 @@ export const useCryptoStore = create<CryptoStore>()(
                             type: 'BUY',
                             quantity,
                             price,
-                            timestamp: Date.now(),
+                            timestamp: Date.now()
                         },
                         ...cryptoTrades
                     ]
@@ -190,12 +162,11 @@ export const useCryptoStore = create<CryptoStore>()(
 
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
                 addXp(10);
-                updateChallengeProgress('volume', 1); // Count as a trade
+                updateChallengeProgress('volume', 1);
                 checkAndUnlockAchievements();
                 analytics.trackEvent('crypto_buy', { symbol, quantity, price, leverage });
             },
 
-            // 💸 SELL CRYPTO
             sellCrypto: (symbol, quantity, price) => {
                 const { cryptoWallet, cryptoHoldings, cryptoTrades } = get();
                 const currentHolding = cryptoHoldings[symbol];
@@ -206,27 +177,17 @@ export const useCryptoStore = create<CryptoStore>()(
                 }
 
                 const newQuantity = currentHolding.quantity - quantity;
-
-                // LEVERAGE MATH (ACTUALLY FIXED):
-                // rawProfit is already the profit on the full leveraged position
-                // (e.g., bought £100k worth with £10k margin, sold for £105k = £5k profit)
-                // Multiplying by leverage again would give £50k profit which is wrong!
                 const costBasis = currentHolding.averageCost * quantity;
                 const saleValue = price * quantity;
-                const profit = saleValue - costBasis; // THIS is the actual profit (already leveraged)
-
-                // Return initial margin + profit (NOT profit * leverage!)
+                const profit = saleValue - costBasis;
                 const initialMargin = costBasis / currentHolding.leverage;
                 const totalReturn = initialMargin + profit;
 
                 const newHoldings = { ...cryptoHoldings };
-                if (newQuantity === 0) {
-                    delete newHoldings[symbol];
+                if (newQuantity > 0.000001) {
+                    newHoldings[symbol] = { ...currentHolding, quantity: newQuantity };
                 } else {
-                    newHoldings[symbol] = {
-                        ...currentHolding,
-                        quantity: newQuantity
-                    };
+                    delete newHoldings[symbol];
                 }
 
                 set({
@@ -256,10 +217,50 @@ export const useCryptoStore = create<CryptoStore>()(
                 }
                 updateChallengeProgress('volume', 1);
                 checkAndUnlockAchievements();
-                analytics.trackEvent('crypto_sell', { symbol, quantity, price, profit: profit });
+                analytics.trackEvent('crypto_sell', { symbol, quantity, price, profit });
             },
 
-            // ⚠️ CHECK FOR LIQUIDATIONS
+            setCryptos: (cryptos) => set({ cryptos }),
+
+            updateCryptoPrice: (symbol, newPrice) => {
+                const { cryptos } = get();
+                set({
+                    cryptos: cryptos.map(c => {
+                        if (c.symbol === symbol) {
+                            const change24h = ((newPrice - c.openPrice) / c.openPrice) * 100;
+                            return {
+                                ...c,
+                                price: newPrice,
+                                change24h: change24h,
+                                history: [...c.history.slice(-49), { timestamp: Date.now(), value: newPrice }]
+                            };
+                        }
+                        return c;
+                    })
+                });
+                get().checkCryptoLiquidation();
+            },
+
+            updateCryptoPrices: (updates) => {
+                const { cryptos } = get();
+                set({
+                    cryptos: cryptos.map(c => {
+                        if (updates[c.symbol]) {
+                            const newPrice = updates[c.symbol];
+                            const change24h = ((newPrice - c.openPrice) / c.openPrice) * 100;
+                            return {
+                                ...c,
+                                price: newPrice,
+                                change24h: change24h,
+                                history: [...c.history.slice(-49), { timestamp: Date.now(), value: newPrice }]
+                            };
+                        }
+                        return c;
+                    })
+                });
+                get().checkCryptoLiquidation();
+            },
+
             checkCryptoLiquidation: () => {
                 const { cryptos, cryptoHoldings } = get();
                 const newHoldings = { ...cryptoHoldings };
@@ -269,13 +270,9 @@ export const useCryptoStore = create<CryptoStore>()(
                     const holding = cryptoHoldings[symbol];
                     const crypto = cryptos.find(c => c.symbol === symbol);
 
-                    if (!crypto || !holding.liquidationPrice || holding.leverage === 1) {
-                        return;
-                    }
+                    if (!crypto || !holding.liquidationPrice || holding.leverage === 1) return;
 
-                    // Check if current price hit liquidation
                     if (crypto.price <= holding.liquidationPrice) {
-                        // Position liquidated - lose all margin
                         delete newHoldings[symbol];
                         liquidationOccurred = true;
 
@@ -285,8 +282,6 @@ export const useCryptoStore = create<CryptoStore>()(
                             [{ text: 'OK', style: 'destructive' }]
                         );
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-
-                        // Award XP for getting rekt (dark humor)
                         addXp(50);
                         unlockAchievement('liquidated');
                         analytics.trackEvent('crypto_liquidated', { symbol, leverage: holding.leverage });
@@ -298,75 +293,36 @@ export const useCryptoStore = create<CryptoStore>()(
                 }
             },
 
-            // 📊 UPDATE CRYPTO PRICES
-            updateCryptoPrice: (symbol, newPrice) => {
+            setMarketPhase: (phase) => set({ marketPhase: phase }),
+
+            dailyReset: () => {
                 const { cryptos } = get();
                 set({
-                    cryptos: cryptos.map((crypto) =>
-                        crypto.symbol === symbol
-                            ? {
-                                ...crypto,
-                                price: newPrice,
-                                history: [
-                                    ...crypto.history.slice(-49),
-                                    { timestamp: Date.now(), value: newPrice }
-                                ],
-                            }
-                            : crypto
-                    ),
+                    cryptos: cryptos.map(c => ({
+                        ...c,
+                        openPrice: c.price
+                    }))
                 });
-                get().checkCryptoLiquidation();
             },
 
-            updateCryptoPrices: (priceUpdates: Record<string, number>) => {
-                const { cryptos } = get();
-                const timestamp = Date.now();
-
-                set({
-                    cryptos: cryptos.map((crypto) => {
-                        const newPrice = priceUpdates[crypto.symbol];
-                        if (newPrice !== undefined) {
-                            return {
-                                ...crypto,
-                                price: newPrice,
-                                history: [
-                                    ...crypto.history.slice(-49),
-                                    { timestamp, value: newPrice }
-                                ],
-                            };
-                        }
-                        return crypto;
-                    }),
-                });
-
-                get().checkCryptoLiquidation();
-            },
-
-            setCryptos: (cryptos) => set({ cryptos }),
-
-            // 💵 GET TOTAL CRYPTO VALUE
             getTotalCryptoValue: () => {
-                const { cryptos, cryptoHoldings } = get();
-                return Object.values(cryptoHoldings).reduce((total, holding) => {
-                    const crypto = cryptos.find(c => c.symbol === holding.symbol);
-                    if (!crypto) return total;
-                    return total + (holding.quantity * crypto.price);
+                const { cryptoHoldings, cryptos } = get();
+                return Object.values(cryptoHoldings).reduce((sum, h) => {
+                    const crypto = cryptos.find(c => c.symbol === h.symbol);
+                    return sum + (h.quantity * (crypto?.price || 0));
                 }, 0);
             },
 
-            // 🔄 RESET
-            reset: () => {
-                set({
-                    cryptoWallet: INITIAL_CRYPTO_WALLET,
-                    cryptos: [],
-                    cryptoHoldings: {},
-                    cryptoTrades: [],
-                });
-            },
+            resetCrypto: () => set({
+                cryptoWallet: INITIAL_CRYPTO_WALLET,
+                cryptoHoldings: {},
+                cryptoTrades: [],
+                marketPhase: 'ACCUMULATION'
+            })
         }),
         {
             name: 'crypto-trader-storage',
-            storage: createJSONStorage(() => asyncStorageWrapper),
+            storage: createJSONStorage(() => zustandStorage),
         }
     )
 );

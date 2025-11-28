@@ -8,6 +8,7 @@ export const CRYPTO_CATALOG: Crypto[] = [
         basePrice: 55000,
         price: 55000,
         openPrice: 55000,
+        minPrice: 25000, // Safety Floor
         history: [{ timestamp: Date.now(), value: 55000 }],
         volatility: 0.04,
         logo: require('../assets/crypto/btc.png'),
@@ -20,6 +21,7 @@ export const CRYPTO_CATALOG: Crypto[] = [
         basePrice: 3200,
         price: 3200,
         openPrice: 3200,
+        minPrice: 1500, // Safety Floor
         history: [{ timestamp: Date.now(), value: 3200 }],
         volatility: 0.05,
         logo: require('../assets/crypto/eth.png'),
@@ -32,6 +34,7 @@ export const CRYPTO_CATALOG: Crypto[] = [
         basePrice: 140,
         price: 140,
         openPrice: 140,
+        minPrice: 40, // Safety Floor
         history: [{ timestamp: Date.now(), value: 140 }],
         volatility: 0.08,
         logo: require('../assets/crypto/sol.png'),
@@ -44,6 +47,7 @@ export const CRYPTO_CATALOG: Crypto[] = [
         basePrice: 0.65,
         price: 0.65,
         openPrice: 0.65,
+        minPrice: 0.25, // Safety Floor
         history: [{ timestamp: Date.now(), value: 0.65 }],
         volatility: 0.06,
         logo: require('../assets/crypto/ada.png'),
@@ -56,6 +60,7 @@ export const CRYPTO_CATALOG: Crypto[] = [
         basePrice: 0.12,
         price: 0.12,
         openPrice: 0.12,
+        minPrice: 0.05, // Safety Floor
         history: [{ timestamp: Date.now(), value: 0.12 }],
         volatility: 0.10,
         logo: require('../assets/crypto/doge.png'),
@@ -68,6 +73,7 @@ export const CRYPTO_CATALOG: Crypto[] = [
         basePrice: 0.90,
         price: 0.90,
         openPrice: 0.90,
+        minPrice: 0.40, // Safety Floor
         history: [{ timestamp: Date.now(), value: 0.90 }],
         volatility: 0.07,
         logo: require('../assets/crypto/matic.png'),
@@ -80,6 +86,7 @@ export const CRYPTO_CATALOG: Crypto[] = [
         basePrice: 35,
         price: 35,
         openPrice: 35,
+        minPrice: 15, // Safety Floor
         history: [{ timestamp: Date.now(), value: 35 }],
         volatility: 0.08,
         logo: require('../assets/crypto/avax.png'),
@@ -92,6 +99,7 @@ export const CRYPTO_CATALOG: Crypto[] = [
         basePrice: 7.5,
         price: 7.5,
         openPrice: 7.5,
+        minPrice: 3.5, // Safety Floor
         history: [{ timestamp: Date.now(), value: 7.5 }],
         volatility: 0.06,
         logo: require('../assets/crypto/dot.png'),
@@ -104,6 +112,7 @@ export const CRYPTO_CATALOG: Crypto[] = [
         basePrice: 16,
         price: 16,
         openPrice: 16,
+        minPrice: 8, // Safety Floor
         history: [{ timestamp: Date.now(), value: 16 }],
         volatility: 0.05,
         logo: require('../assets/crypto/link.png'),
@@ -116,6 +125,7 @@ export const CRYPTO_CATALOG: Crypto[] = [
         basePrice: 8,
         price: 8,
         openPrice: 8,
+        minPrice: 4, // Safety Floor
         history: [{ timestamp: Date.now(), value: 8 }],
         volatility: 0.06,
         logo: require('../assets/crypto/uni.png'),

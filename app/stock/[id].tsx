@@ -2,33 +2,35 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useStore } from '../../store/useStore';
-import { COLORS, FONTS, SPACING, RADIUS } from '../../constants/theme';
-import { TrendingUp, TrendingDown, Star, ChevronLeft, Building2, Activity } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { ChevronLeft, TrendingUp, TrendingDown, Activity, Building2, Info, Star } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import ConfettiCannon from 'react-native-confetti-cannon';
-import { playSound } from '../../utils/sounds';
+import { useStore } from '../../store/useStore';
+import { useTheme } from '../../hooks/useTheme';
+import { COLORS, FONTS, SPACING, RADIUS } from '../../constants/theme';
+import { MiniChart } from '../../components/MiniChart';
 import { TradeModal } from '../../components/TradeModal';
+import { playSound } from '../../utils/sounds';
 
 export default function StockDetailScreen() {
     const { id } = useLocalSearchParams();
     const router = useRouter();
+    const { theme } = useTheme();
     const { stocks, cash, holdings, buyStock, sellStock, watchlist, toggleWatchlist } = useStore();
 
     // id parameter is actually the symbol from the router
     const stock = stocks.find(s => s.symbol === id);
     const [showModal, setShowModal] = useState(false);
-    const [tradeType, setTradeType] = useState<'BUY' | 'SELL'>('BUY');
-    const [quantity, setQuantity] = useState('');
     const [showConfetti, setShowConfetti] = useState(false);
 
     if (!stock) {
         return (
-            <SafeAreaView style={styles.container}>
+            <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
                 <View style={styles.errorContainer}>
-                    <Text style={styles.errorText}>Stock not found</Text>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <Text style={styles.backButtonText}>Go Back</Text>
+                    <Text style={[styles.errorText, { color: theme.text }]}>Stock not found</Text>
+                    <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { backgroundColor: theme.bgElevated }]}>
+                        <Text style={[styles.backButtonText, { color: theme.primary }]}>Go Back</Text>
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
@@ -40,7 +42,7 @@ export default function StockDetailScreen() {
     const ownedValue = ownedShares * stock.price;
     const averageCost = holdings[stock.symbol]?.averageCost || 0;
 
-    // Calculate price change from SESSION START (must match StockCard!)
+    // Calculate price change from SESSION START
     const priceChange = stock.history.length >= 2
         ? stock.price - stock.history[stock.history.length - 2].value
         : 0;
@@ -50,9 +52,17 @@ export default function StockDetailScreen() {
 
     const isPositive = priceChange >= 0;
 
-    const handleTrade = async (qty: number) => {
+    const getGradientColors = () => {
+        if (isPositive) {
+            return [theme.primary + '20', theme.primary + '05'] as const;
+        } else {
+            return ['rgba(239, 68, 68, 0.2)', 'rgba(239, 68, 68, 0.05)'] as const;
+        }
+    };
+
+    const handleTrade = async (qty: number, type: 'BUY' | 'SELL') => {
         try {
-            if (tradeType === 'BUY') {
+            if (type === 'BUY') {
                 if (cash < qty * stock.price) {
                     Alert.alert('Insufficient Funds', 'You cannot afford this trade.');
                     return;
@@ -83,7 +93,7 @@ export default function StockDetailScreen() {
 
             setShowModal(false);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            Alert.alert('Success', `${tradeType === 'BUY' ? 'Bought' : 'Sold'} ${qty} shares of ${stock.symbol}`);
+            Alert.alert('Success', `${type === 'BUY' ? 'Bought' : 'Sold'} ${qty} shares of ${stock.symbol}`);
         } catch (error) {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
             Alert.alert('Error', 'Transaction failed');
@@ -91,10 +101,10 @@ export default function StockDetailScreen() {
     };
 
     const volatilityLabel = stock.volatility <= 3 ? 'Low' : stock.volatility <= 7 ? 'Medium' : 'High';
-    const volatilityColor = stock.volatility <= 3 ? COLORS.positive : stock.volatility <= 7 ? COLORS.warning : COLORS.negative;
+    const volatilityColor = stock.volatility <= 3 ? theme.positive : stock.volatility <= 7 ? theme.warning : theme.negative;
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]}>
             {showConfetti && (
                 <ConfettiCannon
                     count={200}
@@ -105,129 +115,145 @@ export default function StockDetailScreen() {
             )}
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <ChevronLeft size={24} color={COLORS.text} strokeWidth={2} />
+                <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { backgroundColor: theme.bgElevated }]}>
+                    <ChevronLeft size={24} color={theme.text} />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => { toggleWatchlist(stock.symbol); Haptics.selectionAsync(); }}>
+                <Text style={[styles.headerTitle, { color: theme.text }]}>{stock.name}</Text>
+                <TouchableOpacity onPress={() => { toggleWatchlist(stock.symbol); Haptics.selectionAsync(); }} style={[styles.backButton, { backgroundColor: theme.bgElevated }]}>
                     <Star
-                        size={24}
-                        color={isStarred ? COLORS.warning : COLORS.textMuted}
-                        fill={isStarred ? COLORS.warning : 'none'}
-                        strokeWidth={2}
+                        size={20}
+                        color={isStarred ? theme.warning : theme.textMuted}
+                        fill={isStarred ? theme.warning : 'none'}
                     />
                 </TouchableOpacity>
             </View>
 
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-                {/* Stock Title */}
+                {/* Title Section */}
                 <View style={styles.titleSection}>
-                    <Text style={styles.symbol}>{stock.symbol}</Text>
-                    <Text style={styles.companyName}>{stock.name}</Text>
-                    {stock.description && (
-                        <Text style={styles.description}>{stock.description}</Text>
-                    )}
+                    <View style={styles.iconRow}>
+                        <View style={[styles.placeholderLogo, { backgroundColor: theme.bgElevated }]}>
+                            <Text style={[styles.placeholderText, { color: theme.text }]}>{stock.symbol[0]}</Text>
+                        </View>
+                        <View>
+                            <Text style={[styles.symbol, { color: theme.text }]}>{stock.symbol}</Text>
+                            <Text style={[styles.name, { color: theme.textSub }]}>{stock.name}</Text>
+                        </View>
+                    </View>
+
+                    <View style={styles.priceContainer}>
+                        <Text style={[styles.price, { color: theme.text }]}>£{stock.price.toFixed(2)}</Text>
+                        <View style={[styles.changeBadge, { backgroundColor: isPositive ? theme.positive + '20' : theme.negative + '20' }]}>
+                            {isPositive ? <TrendingUp size={16} color={theme.positive} /> : <TrendingDown size={16} color={theme.negative} />}
+                            <Text style={[styles.changeText, { color: isPositive ? theme.positive : theme.negative }]}>
+                                {priceChangePercent.toFixed(2)}%
+                            </Text>
+                        </View>
+                    </View>
                 </View>
 
-                {/* Price Card */}
-                <View style={styles.priceCard}>
-                    <Text style={styles.priceLabel}>Current Price</Text>
-                    <Text style={styles.price}>£{stock.price.toFixed(2)}</Text>
-                    <View style={[
-                        styles.changeBadge,
-                        { backgroundColor: isPositive ? COLORS.positiveSubtle : COLORS.negativeSubtle }
-                    ]}>
-                        {isPositive ? (
-                            <TrendingUp size={16} color={COLORS.positive} strokeWidth={2.5} />
-                        ) : (
-                            <TrendingDown size={16} color={COLORS.negative} strokeWidth={2.5} />
-                        )}
-                        <Text style={[styles.changeText, { color: isPositive ? COLORS.positive : COLORS.negative }]}>
-                            {isPositive ? '+' : ''}{priceChangePercent.toFixed(2)}% Today
-                        </Text>
-                    </View>
+                {/* Chart */}
+                <View style={[styles.chartCard, { borderColor: theme.border }]}>
+                    <LinearGradient
+                        colors={getGradientColors()}
+                        style={styles.chartBackground}
+                    >
+                        <MiniChart
+                            data={stock.history}
+                            width={320}
+                            height={160}
+                            color={isPositive ? theme.primary : theme.negative}
+                        />
+                    </LinearGradient>
                 </View>
 
                 {/* Stats Grid */}
                 <View style={styles.statsGrid}>
-                    <View style={styles.statItem}>
-                        <View style={[styles.statIcon, { backgroundColor: COLORS.accentSubtle }]}>
-                            <Building2 size={18} color={COLORS.accent} />
+                    <View style={[styles.statItem, { backgroundColor: theme.bgElevated, borderColor: theme.border }]}>
+                        <View style={[styles.statIcon, { backgroundColor: theme.primary + '20' }]}>
+                            <Building2 size={18} color={theme.primary} />
                         </View>
-                        <Text style={styles.statLabel}>Market Cap</Text>
-                        <Text style={styles.statValue}>£{(stock.marketCap / 1e9).toFixed(1)}B</Text>
+                        <Text style={[styles.statLabel, { color: theme.textSub }]}>Market Cap</Text>
+                        <Text style={[styles.statValue, { color: theme.text }]}>£{(stock.marketCap / 1e9).toFixed(1)}B</Text>
                     </View>
 
-                    <View style={styles.statItem}>
+                    <View style={[styles.statItem, { backgroundColor: theme.bgElevated, borderColor: theme.border }]}>
                         <View style={[styles.statIcon, { backgroundColor: volatilityColor + '20' }]}>
                             <Activity size={18} color={volatilityColor} />
                         </View>
-                        <Text style={styles.statLabel}>Volatility</Text>
-                        <Text style={[styles.statValue, { color: volatilityColor }]}>{volatilityLabel} ({stock.volatility}/10)</Text>
+                        <Text style={[styles.statLabel, { color: theme.textSub }]}>Volatility</Text>
+                        <Text style={[styles.statValue, { color: volatilityColor }]}>{volatilityLabel}</Text>
                     </View>
+                </View>
 
-                    <View style={styles.statItem}>
-                        <Text style={styles.statLabel}>52-Week Range</Text>
-                        <View style={styles.rangeContainer}>
-                            <Text style={[styles.rangeValue, { color: COLORS.negative }]}>
-                                £{Math.min(...stock.history.map(h => h.value)).toFixed(2)}
-                            </Text>
-                            <Text style={styles.rangeSeparator}>—</Text>
-                            <Text style={[styles.rangeValue, { color: COLORS.positive }]}>
-                                £{Math.max(...stock.history.map(h => h.value)).toFixed(2)}
-                            </Text>
-                        </View>
-                    </View>
-
-                    <View style={styles.statItem}>
-                        <Text style={styles.statLabel}>Sector</Text>
-                        <View style={styles.sectorBadge}>
-                            <Text style={styles.sectorText}>{stock.sector}</Text>
-                        </View>
-                    </View>
-
-                    {ownedShares > 0 && (
-                        <>
-                            <View style={[styles.statItem, styles.ownedCard]}>
-                                <Text style={styles.statLabel}>Your Position</Text>
-                                <Text style={styles.statValue}>{ownedShares} shares</Text>
-                                <Text style={styles.ownedValue}>£{ownedValue.toFixed(2)}</Text>
+                {/* Position Card */}
+                {ownedShares > 0 && (
+                    <View style={[styles.positionCard, { borderColor: theme.primary + '50' }]}>
+                        <LinearGradient
+                            colors={[theme.primary + '30', theme.primary + '10']}
+                            style={styles.positionGradient}
+                        >
+                            <View style={styles.positionHeader}>
+                                <Text style={[styles.positionTitle, { color: theme.text }]}>Your Position</Text>
+                                <Text style={[styles.positionValue, { color: theme.text }]}>£{ownedValue.toFixed(2)}</Text>
                             </View>
-                            <View style={[styles.statItem, styles.ownedCard]}>
-                                <Text style={styles.statLabel}>Average Cost</Text>
-                                <Text style={styles.statValue}>£{averageCost.toFixed(2)}</Text>
-                                <Text style={[styles.ownedValue, { color: stock.price >= averageCost ? COLORS.positive : COLORS.negative }]}>
-                                    {stock.price >= averageCost ? '+' : ''}{((stock.price - averageCost) / averageCost * 100).toFixed(2)}%
-                                </Text>
+                            <View style={styles.positionDetails}>
+                                <View>
+                                    <Text style={[styles.positionLabel, { color: theme.textSub }]}>Shares</Text>
+                                    <Text style={[styles.positionDetailValue, { color: theme.text }]}>{ownedShares}</Text>
+                                </View>
+                                <View>
+                                    <Text style={[styles.positionLabel, { color: theme.textSub }]}>Avg. Cost</Text>
+                                    <Text style={[styles.positionDetailValue, { color: theme.text }]}>£{averageCost.toFixed(2)}</Text>
+                                </View>
+                                <View>
+                                    <Text style={[styles.positionLabel, { color: theme.textSub }]}>Return</Text>
+                                    <Text style={[styles.positionDetailValue, { color: stock.price >= averageCost ? theme.positive : theme.negative }]}>
+                                        {stock.price >= averageCost ? '+' : ''}{((stock.price - averageCost) / averageCost * 100).toFixed(2)}%
+                                    </Text>
+                                </View>
                             </View>
-                        </>
-                    )}
+                        </LinearGradient>
+                    </View>
+                )}
+
+                {/* About Section */}
+                <View style={styles.aboutSection}>
+                    <View style={styles.aboutHeader}>
+                        <Info size={16} color={theme.textSub} />
+                        <Text style={[styles.aboutTitle, { color: theme.text }]}>About {stock.name}</Text>
+                    </View>
+                    <Text style={[styles.description, { color: theme.textSub }]}>{stock.description}</Text>
+                    <View style={[styles.educationalCard, { backgroundColor: theme.primary + '10', borderLeftColor: theme.primary }]}>
+                        <Text style={[styles.educationalTitle, { color: theme.primary }]}>Sector: {stock.sector}</Text>
+                        <Text style={[styles.educationalText, { color: theme.text }]}>
+                            This stock belongs to the {stock.sector} sector. Keep an eye on industry trends!
+                        </Text>
+                    </View>
                 </View>
             </ScrollView>
 
-            {/* Trading Buttons */}
-            <View style={styles.footer}>
+            {/* Trade Button */}
+            <View style={[styles.footer, { backgroundColor: theme.bg, borderTopColor: theme.border }]}>
                 <TouchableOpacity
-                    style={[styles.tradeButton, styles.buyButton]}
-                    onPress={() => { setTradeType('BUY'); setShowModal(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
+                    style={styles.tradeButton}
+                    onPress={() => { setShowModal(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); }}
                 >
-                    <Text style={styles.tradeButtonText}>Buy</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.tradeButton, styles.sellButton]}
-                    onPress={() => { setTradeType('SELL'); setShowModal(true); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-                    disabled={ownedShares === 0}
-                >
-                    <Text style={[styles.tradeButtonText, ownedShares === 0 && { opacity: 0.3 }]}>
-                        Sell {ownedShares > 0 && `(${ownedShares})`}
-                    </Text>
+                    <LinearGradient
+                        colors={[theme.primary, theme.primary + 'CC']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.tradeGradient}
+                    >
+                        <Text style={styles.tradeButtonText}>TRADE</Text>
+                    </LinearGradient>
                 </TouchableOpacity>
             </View>
 
-            {/* Trade Modal */}
             <TradeModal
                 visible={showModal}
                 onClose={() => setShowModal(false)}
-                tradeType={tradeType}
+                tradeType="BUY" // Default to BUY, user can toggle in modal
                 symbol={stock.symbol}
                 price={stock.price}
                 cash={cash}
@@ -241,275 +267,221 @@ export default function StockDetailScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.bg,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: SPACING.xl,
-        paddingVertical: SPACING.lg,
+        paddingHorizontal: SPACING.lg,
+        paddingVertical: SPACING.md,
     },
     backButton: {
-        padding: SPACING.sm,
+        width: 40,
+        height: 40,
+        borderRadius: RADIUS.full,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    backButtonText: {
+        fontSize: 16,
+        fontFamily: FONTS.semibold,
+    },
+    headerTitle: {
+        fontSize: 16,
+        fontFamily: FONTS.bold,
+    },
+    errorContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    errorText: {
+        fontSize: 18,
+        marginBottom: SPACING.lg,
     },
     content: {
         flex: 1,
     },
     titleSection: {
-        paddingHorizontal: SPACING.xl,
-        marginBottom: SPACING.xxl,
+        padding: SPACING.xl,
+        alignItems: 'center',
+    },
+    iconRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: SPACING.lg,
+        gap: SPACING.md,
+    },
+    placeholderLogo: {
+        width: 48,
+        height: 48,
+        borderRadius: RADIUS.full,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    placeholderText: {
+        fontSize: 24,
+        fontFamily: FONTS.bold,
     },
     symbol: {
-        fontSize: 36,
-        fontWeight: '800',
-        color: COLORS.text,
+        fontSize: 24,
         fontFamily: FONTS.bold,
-        letterSpacing: -1,
-        marginBottom: SPACING.xs,
     },
-    companyName: {
-        fontSize: 16,
-        color: COLORS.textSub,
-        fontFamily: FONTS.regular,
-        marginBottom: SPACING.sm,
-    },
-    description: {
+    name: {
         fontSize: 14,
-        color: COLORS.textSub,
-        fontFamily: FONTS.regular,
-        lineHeight: 20,
-        marginTop: SPACING.sm,
-    },
-    priceCard: {
-        backgroundColor: COLORS.bgElevated,
-        marginHorizontal: SPACING.xl,
-        padding: SPACING.xxl,
-        borderRadius: RADIUS.lg,
-        alignItems: 'center',
-        marginBottom: SPACING.xxl,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-    },
-    priceLabel: {
-        fontSize: 12,
-        color: COLORS.textSub,
         fontFamily: FONTS.medium,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        marginBottom: SPACING.sm,
+    },
+    priceContainer: {
+        alignItems: 'center',
     },
     price: {
-        fontSize: 48,
-        fontWeight: '800',
-        color: COLORS.text,
+        fontSize: 36,
         fontFamily: FONTS.bold,
-        letterSpacing: -2,
-        marginBottom: SPACING.md,
+        marginBottom: SPACING.sm,
     },
     changeBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: SPACING.sm,
-        paddingHorizontal: SPACING.lg,
-        paddingVertical: SPACING.sm,
+        gap: 4,
+        paddingHorizontal: SPACING.md,
+        paddingVertical: 4,
         borderRadius: RADIUS.full,
     },
     changeText: {
-        fontSize: 16,
-        fontWeight: '700',
+        fontSize: 14,
         fontFamily: FONTS.bold,
     },
+    chartCard: {
+        marginHorizontal: SPACING.lg,
+        marginBottom: SPACING.xl,
+        borderRadius: RADIUS.lg,
+        overflow: 'hidden',
+        borderWidth: 1,
+    },
+    chartBackground: {
+        padding: SPACING.lg,
+        alignItems: 'center',
+    },
     statsGrid: {
-        paddingHorizontal: SPACING.xl,
+        flexDirection: 'row',
         gap: SPACING.md,
+        paddingHorizontal: SPACING.lg,
+        marginBottom: SPACING.xl,
     },
     statItem: {
-        backgroundColor: COLORS.bgElevated,
-        padding: SPACING.lg,
+        flex: 1,
+        padding: SPACING.md,
         borderRadius: RADIUS.md,
         borderWidth: 1,
-        borderColor: COLORS.border,
     },
     statIcon: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        alignItems: 'center',
+        width: 32,
+        height: 32,
+        borderRadius: RADIUS.full,
         justifyContent: 'center',
+        alignItems: 'center',
         marginBottom: SPACING.sm,
     },
     statLabel: {
         fontSize: 12,
-        color: COLORS.textSub,
         fontFamily: FONTS.medium,
-        marginBottom: SPACING.xs,
     },
     statValue: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: COLORS.text,
-        fontFamily: FONTS.bold,
-    },
-    sectorBadge: {
-        alignSelf: 'flex-start',
-        paddingHorizontal: SPACING.md,
-        paddingVertical: SPACING.xs,
-        backgroundColor: COLORS.accentSubtle,
-        borderRadius: RADIUS.sm,
-    },
-    sectorText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: COLORS.accent,
-        fontFamily: FONTS.semibold,
-    },
-    ownedCard: {
-        backgroundColor: COLORS.accentSubtle,
-        borderColor: COLORS.accent,
-    },
-    ownedValue: {
-        fontSize: 14,
-        color: COLORS.accent,
-        fontFamily: FONTS.medium,
-        marginTop: SPACING.xs,
-    },
-    rangeContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: SPACING.sm,
-        marginTop: SPACING.xs,
-    },
-    rangeValue: {
         fontSize: 16,
-        fontWeight: '700',
         fontFamily: FONTS.bold,
     },
-    rangeSeparator: {
-        fontSize: 16,
-        color: COLORS.textMuted,
-        fontFamily: FONTS.regular,
+    positionCard: {
+        marginHorizontal: SPACING.lg,
+        marginBottom: SPACING.xl,
+        borderRadius: RADIUS.lg,
+        overflow: 'hidden',
+        borderWidth: 1,
     },
-    footer: {
-        flexDirection: 'row',
-        gap: SPACING.md,
-        padding: SPACING.xl,
-        backgroundColor: COLORS.bg,
-        borderTopWidth: 1,
-        borderTopColor: COLORS.border,
+    positionGradient: {
+        padding: SPACING.lg,
     },
-    tradeButton: {
-        flex: 1,
-        paddingVertical: SPACING.lg,
-        borderRadius: RADIUS.md,
-        alignItems: 'center',
-    },
-    buyButton: {
-        backgroundColor: COLORS.positive,
-    },
-    sellButton: {
-        backgroundColor: COLORS.accent,
-    },
-    tradeButtonText: {
-        fontSize: 17,
-        fontWeight: '700',
-        color: '#000',
-        fontFamily: FONTS.bold,
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.85)',
-        justifyContent: 'flex-end',
-    },
-    modalContent: {
-        backgroundColor: COLORS.bgElevated,
-        borderTopLeftRadius: RADIUS.xl,
-        borderTopRightRadius: RADIUS.xl,
-        padding: SPACING.xxl,
-    },
-    modalHeader: {
+    positionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: SPACING.xxl,
+        marginBottom: SPACING.md,
     },
-    modalTitle: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: COLORS.text,
+    positionTitle: {
+        fontSize: 14,
         fontFamily: FONTS.bold,
     },
-    inputSection: {
-        marginBottom: SPACING.xxl,
+    positionValue: {
+        fontSize: 18,
+        fontFamily: FONTS.bold,
     },
-    inputLabel: {
-        fontSize: 14,
-        color: COLORS.textSub,
+    positionDetails: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    positionLabel: {
+        fontSize: 10,
         fontFamily: FONTS.medium,
+        marginBottom: 2,
+    },
+    positionDetailValue: {
+        fontSize: 14,
+        fontFamily: FONTS.bold,
+    },
+    aboutSection: {
+        padding: SPACING.xl,
+        marginBottom: 80, // Space for footer
+    },
+    aboutHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginBottom: SPACING.md,
+    },
+    aboutTitle: {
+        fontSize: 16,
+        fontFamily: FONTS.bold,
+    },
+    description: {
+        fontSize: 14,
+        fontFamily: FONTS.regular,
+        lineHeight: 22,
+        marginBottom: SPACING.lg,
+    },
+    educationalCard: {
+        padding: SPACING.lg,
+        borderRadius: RADIUS.md,
+        borderLeftWidth: 4,
+    },
+    educationalTitle: {
+        fontSize: 14,
+        fontFamily: FONTS.bold,
         marginBottom: SPACING.sm,
     },
-    input: {
-        backgroundColor: COLORS.bgSubtle,
-        borderRadius: RADIUS.md,
+    educationalText: {
+        fontSize: 13,
+        fontFamily: FONTS.regular,
+        lineHeight: 20,
+    },
+    footer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
         padding: SPACING.lg,
-        fontSize: 18,
-        color: COLORS.text,
-        fontFamily: FONTS.bold,
-        borderWidth: 1,
-        borderColor: COLORS.border,
+        borderTopWidth: 1,
     },
-    costRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: SPACING.lg,
+    tradeButton: {
+        borderRadius: RADIUS.lg,
+        overflow: 'hidden',
     },
-    costLabel: {
-        fontSize: 14,
-        color: COLORS.textSub,
-        fontFamily: FONTS.regular,
-    },
-    costValue: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: COLORS.text,
-        fontFamily: FONTS.bold,
-    },
-    availableText: {
-        fontSize: 12,
-        color: COLORS.textMuted,
-        fontFamily: FONTS.regular,
-        marginTop: SPACING.sm,
-    },
-    confirmButton: {
-        backgroundColor: COLORS.accent,
-        paddingVertical: SPACING.lg,
-        borderRadius: RADIUS.md,
+    tradeGradient: {
+        paddingVertical: 16,
         alignItems: 'center',
     },
-    disabledButton: {
-        opacity: 0.3,
-    },
-    confirmButtonText: {
-        fontSize: 17,
-        fontWeight: '700',
-        color: '#000',
-        fontFamily: FONTS.bold,
-    },
-    errorContainer: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: SPACING.xxl,
-    },
-    errorText: {
-        fontSize: 20,
-        color: COLORS.text,
-        fontFamily: FONTS.semibold,
-        marginBottom: SPACING.xl,
-    },
-    backButtonText: {
-        color: COLORS.accent,
+    tradeButtonText: {
         fontSize: 16,
-        fontFamily: FONTS.semibold,
+        fontFamily: FONTS.bold,
+        color: '#FFF',
+        letterSpacing: 1,
     },
 });

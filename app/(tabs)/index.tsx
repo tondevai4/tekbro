@@ -1,200 +1,229 @@
-import React, { useCallback, useState, useEffect } from 'react';
-import { View, StyleSheet, RefreshControl, Alert, Text, TouchableOpacity } from 'react-native';
-import { FlashList } from '@shopify/flash-list';
+import React, { useState, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Dimensions, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
+import { useStore } from '../../store/useStore';
+import { useCryptoStore } from '../../store/useCryptoStore';
+import { COLORS, FONTS, SPACING, RADIUS } from '../../constants/theme';
+import { TrendingUp, TrendingDown, Activity, Trophy, Flame, Search, LogOut } from 'lucide-react-native';
+import { AppBackground } from '../../components/AppBackground';
+import { AssetList } from '../../components/AssetList';
+import { AchievementsSection } from '../../components/AchievementsSection';
+import { DailyChallengeCard } from '../../components/DailyChallengeCard';
+import { BestTradesCard } from '../../components/BestTradesCard';
+import { TradeHistoryModal } from '../../components/TradeHistoryModal';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCryptoStore } from '../../store/useCryptoStore';
-import { useStore } from '../../store/useStore';
-import { CryptoCard } from '../../components/CryptoCard';
-import { StockCard } from '../../components/StockCard';
-import { StatsHeader } from '../../components/StatsHeader';
-import { Header } from '../../components/Header';
-import { MetricCard } from '../../components/MetricCard';
-import { MetricDetailModal } from '../../components/MetricDetailModal';
-import { AchievementsSection } from '../../components/AchievementsSection';
-import { AssetTabs } from '../../components/AssetTabs';
-import { EmptyPortfolioState } from '../../components/EmptyPortfolioState';
-import { QuickStats } from '../../components/QuickStats';
-import { COLORS, SPACING, FONTS, RADIUS } from '../../constants/theme';
-import { AppBackground } from '../../components/AppBackground';
+import { LevelDetailModal } from '../../components/LevelDetailModal';
+import { StreakDetailModal } from '../../components/StreakDetailModal';
+import { UnifiedSearchModal } from '../../components/UnifiedSearchModal';
+import { AnimatedCounter } from '../../components/AnimatedCounter';
+import { NetWorthModal } from '../../components/NetWorthModal';
+import { useTheme } from '../../hooks/useTheme';
+
+// Memoized Header Component
+const PortfolioHeader = React.memo(({
+    username,
+    netWorth,
+    cash,
+    cryptoValue,
+    totalChange,
+    totalChangePercent,
+    level,
+    xp,
+    streak,
+    tradesCount,
+    onLevelPress,
+    onStreakPress,
+    onReset,
+    onSearchPress,
+    onNetWorthPress
+}: any) => {
+    const { theme } = useTheme();
+
+    return (
+        <View style={styles.header}>
+            <View style={styles.topRow}>
+                <View>
+                    <Text style={[styles.greeting, { color: theme.textSecondary }]}>Welcome back,</Text>
+                    <Text style={[styles.username, { color: theme.text }]}>{username || 'Trader'}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 12 }}>
+                    <TouchableOpacity onPress={onSearchPress} style={styles.settingsButton}>
+                        <Search size={24} color={theme.textSecondary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={onReset} style={styles.settingsButton}>
+                        <LogOut size={24} color={theme.textSecondary} />
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            {/* Quick Stats Row */}
+            <View style={styles.statsRow}>
+                <TouchableOpacity
+                    style={[styles.statBadge, { backgroundColor: theme.card, borderColor: theme.border }]}
+                    onPress={onLevelPress}
+                    activeOpacity={0.7}
+                >
+                    <Trophy size={14} color={theme.accent} />
+                    <AnimatedCounter
+                        value={level}
+                        prefix="Lvl "
+                        style={[styles.statText, { color: theme.text }]}
+                    />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={[styles.statBadge, { backgroundColor: theme.card, borderColor: theme.border }]}
+                    onPress={onStreakPress}
+                    activeOpacity={0.7}
+                >
+                    <Flame size={14} color="#F59E0B" />
+                    <AnimatedCounter
+                        value={streak}
+                        suffix=" Day Streak"
+                        style={[styles.statText, { color: '#F59E0B' }]}
+                    />
+                </TouchableOpacity>
+
+                <View style={[styles.statBadge, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                    <Activity size={14} color={theme.positive} />
+                    <AnimatedCounter
+                        value={tradesCount}
+                        suffix=" Trades"
+                        style={[styles.statText, { color: theme.positive }]}
+                    />
+                </View>
+            </View>
+
+            {/* Net Worth Card */}
+            <TouchableOpacity activeOpacity={0.9} onPress={onNetWorthPress}>
+                <LinearGradient
+                    colors={theme.cardGradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[styles.netWorthCard, { borderColor: 'rgba(255,255,255,0.1)' }]}
+                >
+                    <View style={styles.netWorthHeader}>
+                        <Text style={[styles.netWorthLabel, { color: 'rgba(255,255,255,0.7)' }]}>Total Net Worth</Text>
+                        <View style={[styles.changeBadge, { backgroundColor: totalChange >= 0 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)' }]}>
+                            {totalChange >= 0 ? <TrendingUp size={14} color={theme.positive} /> : <TrendingDown size={14} color={theme.negative} />}
+                            <Text style={[styles.changeText, { color: totalChange >= 0 ? theme.positive : theme.negative }]}>
+                                {totalChange >= 0 ? '+' : ''}{totalChangePercent.toFixed(2)}%
+                            </Text>
+                        </View>
+                    </View>
+
+                    <AnimatedCounter
+                        value={netWorth}
+                        prefix="£"
+                        style={[styles.netWorthValue, { color: theme.white }]}
+                        formatter={(val) => `£${Math.floor(val).toLocaleString()}`}
+                    />
+
+                    <View style={styles.balanceRow}>
+                        <View style={styles.balanceItem}>
+                            <Text style={[styles.balanceLabel, { color: 'rgba(255,255,255,0.6)' }]}>Cash</Text>
+                            <Text style={[styles.balanceText, { color: theme.white }]}>£{cash.toLocaleString()}</Text>
+                        </View>
+                        <View style={styles.balanceDivider} />
+                        <View style={styles.balanceItem}>
+                            <Text style={[styles.balanceLabel, { color: 'rgba(255,255,255,0.6)' }]}>Crypto</Text>
+                            <Text style={[styles.balanceText, { color: theme.white }]}>£{cryptoValue.toLocaleString()}</Text>
+                        </View>
+                    </View>
+                </LinearGradient>
+            </TouchableOpacity>
+        </View>
+    );
+});
 
 export default function PortfolioScreen() {
-    // OPTIMIZATION: Split selectors to prevent re-renders when unrelated data changes
-    const stocks = useStore(state => state.stocks);
-    const cash = useStore(state => state.cash);
-    const holdings = useStore(state => state.holdings);
-    const trades = useStore(state => state.trades);
-    const xp = useStore(state => state.xp);
-    const level = useStore(state => state.level);
-    const loginStreak = useStore(state => state.loginStreak);
-    const achievements = useStore(state => state.achievements);
-    const watchlist = useStore(state => state.watchlist);
-    const username = useStore(state => state.username);
-    const reset = useStore(state => state.reset);
-    const checkLoginStreak = useStore(state => state.checkLoginStreak);
-    const syncAchievements = useStore(state => state.syncAchievements);
-    const equityHistory = useStore(state => state.equityHistory);
     const router = useRouter();
-
-    // Crypto Store
-    const {
-        cryptoWallet,
-        cryptos,
-        cryptoHoldings,
-        cryptoTrades,
-        getTotalCryptoValue
-    } = useCryptoStore();
-
-    useEffect(() => {
-        checkLoginStreak();
-        syncAchievements();
-    }, []);
-    const FlashListAny = FlashList as any;
-
-    const [activeModal, setActiveModal] = useState<'netWorth' | 'buyingPower' | null>(null);
-    const [activeTab, setActiveTab] = useState('All');
     const [refreshing, setRefreshing] = useState(false);
+    const [showLevelModal, setShowLevelModal] = useState(false);
+    const [showStreakModal, setShowStreakModal] = useState(false);
+    const [showSearchModal, setShowSearchModal] = useState(false);
+    const [showNetWorthModal, setShowNetWorthModal] = useState(false);
+    const [historyVisible, setHistoryVisible] = useState(false);
+    const [selectedTradeId, setSelectedTradeId] = useState<string | undefined>(undefined);
 
-    // Calculate total equity (Stocks + Crypto + Cash + Crypto Wallet)
-    const stockValue = React.useMemo(() => {
-        return stocks.reduce((sum, stock) => {
-            const quantity = holdings[stock.symbol]?.quantity || 0;
-            return sum + (stock.price * quantity);
-        }, 0);
-    }, [stocks, holdings]);
+    const {
+        cash,
+        holdings,
+        stocks,
+        username,
+        level,
+        xp,
+        loginStreak,
+        lastLoginDate,
+        trades,
+        achievements,
+        dailyChallenges,
+        reset
+    } = useStore();
 
+    const { getTotalCryptoValue, cryptos, cryptoHoldings } = useCryptoStore();
     const cryptoValue = getTotalCryptoValue();
-    const totalEquity = cash + stockValue + cryptoWallet + cryptoValue;
 
-    // Calculate performance stats for net worth modal
-    const INITIAL_CAPITAL = 1000000;
-    const allTimePnL = totalEquity - INITIAL_CAPITAL;
-    const allTimePnLPercent = (allTimePnL / INITIAL_CAPITAL) * 100;
+    // Calculate Portfolio Value
+    const portfolioValue = useMemo(() => {
+        return Object.values(holdings).reduce((sum, h) => {
+            const stock = stocks.find(s => s.symbol === h.symbol);
+            return sum + (h.quantity * (stock?.price || 0));
+        }, 0);
+    }, [holdings, stocks]);
 
-    // Calculate Daily Change
-    const { dailyChange, dailyChangePercent } = React.useMemo(() => {
-        if (!equityHistory || equityHistory.length === 0) {
-            return { dailyChange: 0, dailyChangePercent: 0 };
-        }
+    const netWorth = cash + portfolioValue + cryptoValue;
+    const initialCapital = 1000000;
+    const totalChange = netWorth - initialCapital;
+    const totalChangePercent = (totalChange / initialCapital) * 100;
 
-        const now = Date.now();
-        const oneDayAgo = now - 24 * 60 * 60 * 1000;
-
-        // Find the history point closest to 24h ago
-        // Since history is sorted by time, we can find the first entry >= oneDayAgo
-        // Or just take the oldest if all are recent
-        let previousEquity = INITIAL_CAPITAL; // Default to initial if no history
-
-        // Find the first entry that is at least 24h old, or the oldest one available
-        const pastEntry = equityHistory.find(entry => entry.timestamp >= oneDayAgo);
-
-        if (pastEntry) {
-            // If we found an entry within the last 24h, we actually want the one BEFORE it
-            // But simpler logic: just take the oldest entry in the last 24h window?
-            // Actually, we want the value from ~24h ago.
-            // If we have history: [oldest, ..., newest]
-            // We want the entry closest to 24h ago.
-
-            // Let's just take the first entry in the array if it's older than 24h?
-            // No, equityHistory is sliced to last 50 entries.
-            // Let's assume the oldest entry in the history buffer is the best reference for "start of period"
-            previousEquity = equityHistory[0].value;
-        } else if (equityHistory.length > 0) {
-            previousEquity = equityHistory[0].value;
-        }
-
-        const change = totalEquity - previousEquity;
-        const percent = previousEquity > 0 ? (change / previousEquity) * 100 : 0;
-
-        return { dailyChange: change, dailyChangePercent: percent };
-    }, [equityHistory, totalEquity]);
-
-
-    const onRefresh = useCallback(() => {
-        setRefreshing(true);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setTimeout(() => {
-            setRefreshing(false);
-        }, 1000);
-    }, []);
-
-    // Filter stocks: Owned OR Watched
-    const allAssets = React.useMemo(() => {
-        let assets: any[] = [];
-
-        // Helper to check ownership
-        const isOwnedStock = (symbol: string) => holdings[symbol]?.quantity > 0;
-        const isOwnedCrypto = (symbol: string) => cryptoHoldings[symbol]?.quantity > 0;
-        const isWatched = (symbol: string) => watchlist.includes(symbol);
-
-        if (activeTab === 'All') {
-            // Show all OWNED assets (Stocks + Crypto)
-            const ownedStocks = stocks.filter(s => isOwnedStock(s.symbol));
-            const ownedCryptos = cryptos.filter(c => isOwnedCrypto(c.symbol));
-            assets = [...ownedStocks, ...ownedCryptos];
-        } else if (activeTab === 'Stocks') {
-            // Show OWNED stocks only
-            assets = stocks.filter(s => isOwnedStock(s.symbol));
-        } else if (activeTab === 'Crypto') {
-            // Show OWNED crypto only
-            assets = cryptos.filter(c => isOwnedCrypto(c.symbol));
-        } else if (activeTab === 'Watchlist') {
-            // Show WATCHED stocks (regardless of ownership)
-            assets = stocks.filter(s => isWatched(s.symbol));
-        }
-
-        // Sort Logic
-        return assets.sort((a, b) => {
-            // Always sort by value descending for owned assets
-            // For watchlist, maybe sort by symbol or price change?
-            // For now, consistent value sort (even if 0 value for watchlist items not owned)
-
-            const getValue = (item: any) => {
-                if ('logo' in item) { // Crypto
-                    const holding = cryptoHoldings[item.symbol];
-                    return holding ? holding.quantity * item.price : 0;
-                } else { // Stock
-                    const holding = holdings[item.symbol];
-                    return holding ? holding.quantity * item.price : 0;
-                }
+    // Combine Stocks and Crypto for Asset List
+    const allAssets = useMemo(() => {
+        const stockAssets = Object.values(holdings).map(h => {
+            const stock = stocks.find(s => s.symbol === h.symbol);
+            if (!stock) return null;
+            return {
+                ...stock,
+                type: 'stock' as const
             };
+        }).filter(Boolean);
 
-            const valA = getValue(a);
-            const valB = getValue(b);
+        const cryptoAssets = Object.values(cryptoHoldings).map(h => {
+            const crypto = cryptos.find(c => c.symbol === h.symbol);
+            if (!crypto) return null;
+            return {
+                ...crypto,
+                type: 'crypto' as const
+            };
+        }).filter(Boolean);
 
-            // If both have value, sort by value desc
-            if (valA > 0 || valB > 0) {
-                return valB - valA;
-            }
+        const combined = [...stockAssets, ...cryptoAssets];
 
-            // Fallback to name/symbol
+        return combined.sort((a: any, b: any) => {
             return a.symbol.localeCompare(b.symbol);
         });
-    }, [stocks, holdings, watchlist, cryptos, cryptoHoldings, activeTab]);
+    }, [holdings, stocks, cryptoHoldings, cryptos]);
 
-    const renderItem = useCallback(({ item }: { item: any }) => {
-        if ('logo' in item) {
-            return <CryptoCard crypto={item} />;
-        }
-        return <StockCard stock={item} />;
+    const onRefresh = useCallback(async () => {
+        setRefreshing(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        setTimeout(() => setRefreshing(false), 1000);
     }, []);
 
     const handleReset = () => {
         Alert.alert(
-            "Reset Game?",
-            "This will wipe all progress and start over with £1M. Are you sure?",
+            "Reset Portfolio",
+            "Are you sure? This will wipe all progress, trades, and achievements.",
             [
                 { text: "Cancel", style: "cancel" },
                 {
-                    text: "Reset",
+                    text: "Reset Everything",
                     style: "destructive",
-                    onPress: async () => {
+                    onPress: () => {
                         reset();
-                        await AsyncStorage.removeItem('onboarding_completed');
-                        router.replace('/onboarding');
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                     }
                 }
             ]
@@ -203,123 +232,107 @@ export default function PortfolioScreen() {
 
     return (
         <AppBackground>
-            <SafeAreaView style={[styles.container, { backgroundColor: 'transparent' }]} edges={['top']}>
-                <StatusBar style="light" />
-
-                <Header
-                    title={`Hello, ${username}.`}
-                    rightComponent={
-                        <TouchableOpacity onPress={handleReset}>
-                            <Text style={{ color: COLORS.textSub, fontSize: 12 }}>RESET</Text>
-                        </TouchableOpacity>
+            <SafeAreaView style={styles.container} edges={['top']}>
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />
                     }
-                />
+                    showsVerticalScrollIndicator={false}
+                >
+                    <PortfolioHeader
+                        username={username}
+                        netWorth={netWorth}
+                        cash={cash}
+                        cryptoValue={cryptoValue}
+                        totalChange={totalChange}
+                        totalChangePercent={totalChangePercent}
+                        level={level}
+                        xp={xp}
+                        streak={loginStreak}
+                        lastLoginDate={lastLoginDate}
+                        tradesCount={trades.length}
+                        onLevelPress={() => {
+                            Haptics.selectionAsync();
+                            setShowLevelModal(true);
+                        }}
+                        onStreakPress={() => {
+                            Haptics.selectionAsync();
+                            setShowStreakModal(true);
+                        }}
+                        onReset={handleReset}
+                        onSearchPress={() => setShowSearchModal(true)}
+                        onNetWorthPress={() => {
+                            Haptics.selectionAsync();
+                            setShowNetWorthModal(true);
+                        }}
+                    />
 
-                <View style={styles.content}>
-                    {(FlashList as any) && (
-                        <FlashListAny
-                            ListHeaderComponent={
-                                <View style={styles.headerContent}>
-                                    <StatsHeader
-                                        xp={xp}
-                                        level={level}
-                                        loginStreak={loginStreak}
-                                    />
+                    <View style={[styles.section, { paddingHorizontal: SPACING.lg }]}>
+                        <DailyChallengeCard challenge={dailyChallenges?.challenges[0] || null} />
+                    </View>
 
-                                    <View style={styles.statsRow}>
-                                        <MetricCard
-                                            label="Buying Power"
-                                            value={`£${cash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                                            onPress={() => {
-                                                Haptics.selectionAsync();
-                                                setActiveModal('buyingPower');
-                                            }}
-                                        />
-                                        <View style={{ width: SPACING.md }} />
-                                        <MetricCard
-                                            label="Net Worth"
-                                            value={`£${totalEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                                            variant={totalEquity >= 10000 ? 'positive' : 'default'}
-                                            onPress={() => {
-                                                Haptics.selectionAsync();
-                                                setActiveModal('netWorth');
-                                            }}
-                                        />
-                                    </View>
+                    <View style={styles.section}>
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionTitle}>Your Assets</Text>
+                            <TouchableOpacity onPress={() => setShowSearchModal(true)}>
+                                <Text style={styles.seeAll}>Trade</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <AssetList assets={allAssets} />
+                    </View>
 
-                                    <QuickStats />
+                    <AchievementsSection achievements={achievements} />
 
-                                    <AchievementsSection achievements={achievements} />
-
-                                    <View style={styles.sectionHeader}>
-                                        <View>
-                                            <Text style={styles.sectionTitle}>Your Assets</Text>
-                                            <Text style={styles.sectionSubtitle}>
-                                                {activeTab === 'Watchlist'
-                                                    ? `${allAssets.length} Watched`
-                                                    : `${allAssets.length} Owned`
-                                                }
-                                            </Text>
-                                        </View>
-                                    </View>
-
-                                    <AssetTabs
-                                        tabs={['All', 'Stocks', 'Crypto', 'Watchlist']}
-                                        activeTab={activeTab}
-                                        onTabChange={setActiveTab}
-                                    />
-                                </View>
-                            }
-                            data={allAssets}
-                            keyExtractor={(item: any) => item.symbol}
-                            renderItem={renderItem}
-                            contentContainerStyle={styles.listContent}
-                            estimatedItemSize={100}
-                            refreshControl={
-                                <RefreshControl
-                                    refreshing={refreshing}
-                                    onRefresh={onRefresh}
-                                    tintColor={COLORS.accent}
-                                    colors={[COLORS.accent]}
-                                />
-                            }
-                            showsVerticalScrollIndicator={false}
-                            ListEmptyComponent={
-                                <EmptyPortfolioState activeTab={activeTab} />
-                            }
+                    <View style={[styles.section, { marginBottom: 100 }]}>
+                        <BestTradesCard
+                            trades={trades}
+                            onViewAll={() => {
+                                setSelectedTradeId(undefined);
+                                setHistoryVisible(true);
+                            }}
+                            onTradePress={(id) => {
+                                setSelectedTradeId(id);
+                                setHistoryVisible(true);
+                            }}
                         />
-                    )}
-                </View>
+                    </View>
+                </ScrollView>
 
-                {/* Metric Detail Modals */}
-                <MetricDetailModal
-                    visible={activeModal === 'buyingPower'}
-                    onClose={() => setActiveModal(null)}
-                    title="Buying Power"
-                    value={`£${cash.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                    description="This is your available cash balance. You can use this to buy new stocks. Selling stocks will increase this balance."
-                    type="buyingPower"
-                    transactions={[...trades, ...cryptoTrades].sort((a, b) => b.timestamp - a.timestamp)}
+                <TradeHistoryModal
+                    visible={historyVisible}
+                    onClose={() => setHistoryVisible(false)}
+                    initialTradeId={selectedTradeId}
                 />
 
-                <MetricDetailModal
-                    visible={activeModal === 'netWorth'}
-                    onClose={() => setActiveModal(null)}
-                    title="Net Worth"
-                    value={`£${totalEquity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                    description="Your total financial value. This includes your available cash plus the current market value of all stocks you own."
-                    type="netWorth"
-                    breakdown={{
-                        cash: cash + cryptoWallet,
-                        stocks: stockValue,
-                        crypto: cryptoValue
-                    }}
-                    performance={{
-                        dailyChange,
-                        dailyChangePercent,
-                        allTimePnL,
-                        allTimePnLPercent
-                    }}
+                <LevelDetailModal
+                    visible={showLevelModal}
+                    onClose={() => setShowLevelModal(false)}
+                    level={level}
+                    xp={xp}
+                />
+
+                <StreakDetailModal
+                    visible={showStreakModal}
+                    onClose={() => setShowStreakModal(false)}
+                    streak={loginStreak}
+                    lastLoginDate={lastLoginDate}
+                />
+
+                <UnifiedSearchModal
+                    visible={showSearchModal}
+                    onClose={() => setShowSearchModal(false)}
+                />
+
+                <NetWorthModal
+                    visible={showNetWorthModal}
+                    onClose={() => setShowNetWorthModal(false)}
+                    netWorth={netWorth}
+                    cash={cash}
+                    stockValue={portfolioValue}
+                    cryptoValue={cryptoValue}
+                    totalChange={totalChange}
+                    totalChangePercent={totalChangePercent}
                 />
             </SafeAreaView>
         </AppBackground>
@@ -330,54 +343,135 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    content: {
-        flex: 1,
+    scrollContent: {
+        paddingBottom: SPACING.xl,
     },
-    headerContent: {
+    header: {
+        paddingHorizontal: SPACING.lg,
+        paddingBottom: SPACING.md,
+    },
+    topRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         marginBottom: SPACING.md,
+    },
+    greeting: {
+        fontSize: 14,
+        color: COLORS.textSecondary,
+        fontFamily: FONTS.medium,
+    },
+    username: {
+        fontSize: 24,
+        color: COLORS.text,
+        fontFamily: FONTS.bold,
+    },
+    settingsButton: {
+        padding: 8,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: RADIUS.full,
     },
     statsRow: {
         flexDirection: 'row',
-        marginBottom: SPACING.xl,
+        gap: SPACING.sm,
+        marginBottom: SPACING.md,
+    },
+    statBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: COLORS.card,
+        paddingHorizontal: SPACING.md,
+        paddingVertical: 6,
+        borderRadius: RADIUS.full,
+        gap: 6,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    statText: {
+        fontSize: 12,
+        fontFamily: FONTS.bold,
+        color: COLORS.text,
+    },
+    netWorthCard: {
+        padding: SPACING.lg,
+        borderRadius: RADIUS.xl,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.1)',
+    },
+    netWorthHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: SPACING.sm,
+    },
+    netWorthLabel: {
+        fontSize: 14,
+        color: COLORS.textSecondary,
+        fontFamily: FONTS.medium,
+    },
+    changeBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: RADIUS.full,
+        gap: 4,
+    },
+    changeText: {
+        fontSize: 12,
+        fontFamily: FONTS.bold,
+    },
+    netWorthValue: {
+        fontSize: 36,
+        fontFamily: FONTS.bold,
+        color: '#FFF',
+        marginBottom: SPACING.lg,
+    },
+    balanceRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.2)',
+        borderRadius: RADIUS.lg,
+        padding: SPACING.md,
+    },
+    balanceItem: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    balanceDivider: {
+        width: 1,
+        height: 24,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+    },
+    balanceLabel: {
+        fontSize: 12,
+        color: COLORS.textTertiary,
+        marginBottom: 4,
+        fontFamily: FONTS.medium,
+    },
+    balanceText: {
+        fontSize: 16,
+        color: '#FFF',
+        fontFamily: FONTS.bold,
+    },
+    section: {
+        marginTop: SPACING.xl,
     },
     sectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        paddingHorizontal: SPACING.lg,
         marginBottom: SPACING.md,
-        paddingHorizontal: SPACING.xs,
     },
     sectionTitle: {
         fontSize: 18,
-        fontWeight: '700',
-        color: COLORS.text,
         fontFamily: FONTS.bold,
-    },
-    sectionSubtitle: {
-        fontSize: 12,
-        color: COLORS.textSecondary,
-        fontFamily: FONTS.medium,
-    },
-    listContent: {
-        paddingHorizontal: 16,
-        paddingBottom: 100,
-        paddingTop: 8,
-    },
-    emptyState: {
-        padding: SPACING.xl,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: SPACING.xl,
-    },
-    emptyText: {
         color: COLORS.text,
-        fontSize: 16,
-        fontFamily: FONTS.medium,
-        marginBottom: 8,
     },
-    emptySubtext: {
-        color: COLORS.textSecondary,
+    seeAll: {
         fontSize: 14,
-        fontFamily: FONTS.regular,
+        color: COLORS.primary,
+        fontFamily: FONTS.bold,
     },
 });

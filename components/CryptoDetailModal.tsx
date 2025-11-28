@@ -212,10 +212,16 @@ export const CryptoDetailModal: React.FC<CryptoDetailModalProps> = ({
                                         <TextInput
                                             style={styles.input}
                                             value={amount}
-                                            onChangeText={setAmount}
-                                            keyboardType="numeric"
+                                            onChangeText={(text) => {
+                                                // Allow valid decimal input
+                                                if (text === '' || /^\d*\.?\d{0,2}$/.test(text)) {
+                                                    setAmount(text);
+                                                }
+                                            }}
+                                            keyboardType="decimal-pad"
                                             placeholder="0.00"
                                             placeholderTextColor={COLORS.textSub}
+                                            maxLength={10}
                                         />
                                     </View>
                                     <View style={styles.quickRow}>

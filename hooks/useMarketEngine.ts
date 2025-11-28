@@ -6,22 +6,23 @@ import { initializeStocks, STOCK_CATALOG } from '../constants/stockData';
 import { generateNewsEvent } from '../utils/NewsEngine';
 
 /**
- * 🎲 THE GUMPTION ENGINE (Market V3)
+ * 🏛️ STOCK MARKET ENGINE V2: Macro-Economic State Machine
  * 
- * Philosophy: "Organic Chaos"
- * - No scripted "Rally Modes".
- * - Stocks follow a Random Walk with Drift.
- * - "Fat Tails": Uses Gaussian (Normal) distribution for RNG. Most moves are small, but rare events are HUGE.
- * - Drift: Each stock has a hidden "trend" that evolves slowly.
- * - News: News events "kick" the drift, changing the future path.
+ * Core Logic:
+ * 1. Macro Drivers: Interest Rates, GDP Growth, Inflation.
+ * 2. State Machine:
+ *    - EXPANSION: High GDP, Low Rates -> Bull Market
+ *    - OVERHEATING: High GDP, High Inflation -> Rate Hikes -> Volatility
+ *    - STAGFLATION: Low GDP, High Inflation -> Bear Market
+ *    - RECESSION: Negative GDP, Low Rates -> Crash/Accumulation
+ * 3. Earnings Season: Quarterly events where stocks beat/miss expectations.
+ * 4. Fed Meetings: Simulated rate decisions.
  */
 
-// Box-Muller Transform: Generates numbers with a Normal Distribution (Bell Curve)
-// Mean = 0, Variance = 1
-// Returns values mostly between -2 and 2, but can go higher (The "Fat Tail")
+// Box-Muller Transform for Normal Distribution
 const boxMullerRandom = () => {
     let u = 0, v = 0;
-    while (u === 0) u = Math.random(); // Converting [0,1) to (0,1)
+    while (u === 0) u = Math.random();
     while (v === 0) v = Math.random();
     return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
 };
@@ -37,34 +38,31 @@ export const useMarketEngine = () => {
         fearGreedIndex,
         marketCyclePhase,
         getSectorMultiplier,
-        updateMood,
+        updateMarketEngine,
         tick,
-        checkCycleTransition
+        interestRate,
+        gdpGrowth,
+        inflation,
+        setMacroMetrics
     } = useMarketMoodStore();
 
     const lastNewsTimeRef = useRef(Date.now());
-
-    // 🌊 DRIFT SYSTEM: The hidden "Current" of the stock
-    // Positive = Bullish trend, Negative = Bearish trend
-    // This value itself "walks" randomly over time.
     const driftRef = useRef<Record<string, number>>({});
+    const tickCountRef = useRef(0);
 
-    // Initialize stocks and drift
+    // 1. INITIALIZATION
     useEffect(() => {
         const currentStocks = useStore.getState().stocks;
         const needsReset = currentStocks.length !== STOCK_CATALOG.length ||
-            currentStocks.some(s => !s || !s.price || s.price < 1 || !s.history || s.history.length === 0);
+            currentStocks.some(s => !s || !s.price || s.price < 1);
 
         if (needsReset) {
             const initializedStocks = initializeStocks();
             setStocks(initializedStocks);
-
-            // Initialize random drift
             initializedStocks.forEach(stock => {
                 driftRef.current[stock.symbol] = (Math.random() - 0.5) * 0.002;
             });
         } else {
-            // Hydrate drift for existing stocks if missing
             currentStocks.forEach(stock => {
                 if (driftRef.current[stock.symbol] === undefined) {
                     driftRef.current[stock.symbol] = (Math.random() - 0.5) * 0.002;
@@ -73,103 +71,168 @@ export const useMarketEngine = () => {
         }
     }, []);
 
-    // ⚡ THE GAME LOOP (1s Updates - Faster for organic feel)
+    // 2. MACRO SIMULATION LOOP (Every 10s)
+    useEffect(() => {
+        const macroInterval = setInterval(() => {
+            let newRate = interestRate;
+            let newGDP = gdpGrowth;
+            let newInflation = inflation;
+
+            // Economic Logic
+            // High Growth -> Higher Inflation
+            if (gdpGrowth > 3.0) newInflation += 0.1;
+            // High Inflation -> Rate Hikes (Fed Response)
+            if (inflation > 3.0) newRate += 0.05;
+            // High Rates -> Lower Growth (Cooling)
+            if (interestRate > 4.0) newGDP -= 0.1;
+            // Low Rates -> Higher Growth (Stimulus)
+            if (interestRate < 2.0) newGDP += 0.1;
+
+            // Mean Reversion (Economy tends to stabilize)
+            newGDP = newGDP * 0.98 + 2.0 * 0.02; // Target 2% growth
+            newInflation = newInflation * 0.98 + 2.0 * 0.02; // Target 2% inflation
+            newRate = Math.max(0, Math.min(10, newRate)); // Clamp rates
+
+            setMacroMetrics({
+                interestRate: Number(newRate.toFixed(2)),
+                gdpGrowth: Number(newGDP.toFixed(2)),
+                inflation: Number(newInflation.toFixed(2))
+            });
+
+            // Calculate Average Market Return for Cycle Logic
+            const currentStocks = useStore.getState().stocks;
+            const avgReturn = currentStocks.length > 0 ? currentStocks.reduce((sum, s) => {
+                const startPrice = s.history.length > 0 ? s.history[0].value : s.price;
+                return sum + ((s.price - startPrice) / startPrice);
+            }, 0) / currentStocks.length : 0;
+
+            // TRIGGER CYCLE TRANSITION CHECK
+            // checkCycleTransition(avgReturn); // Deprecated in V2 Engine
+
+        }, 10000);
+
+        return () => clearInterval(macroInterval);
+    }, [interestRate, gdpGrowth, inflation]);
+
+    // 3. MAIN MARKET LOOP (1s Ticks)
     useEffect(() => {
         const interval = setInterval(() => {
             const currentStocks = useStore.getState().stocks;
-            if (currentStocks.length === 0) return;
+            // 0. RE-INITIALIZATION CHECK
+            if (currentStocks.length === 0) {
+                const initializedStocks = initializeStocks();
+                setStocks(initializedStocks);
+                initializedStocks.forEach(stock => {
+                    driftRef.current[stock.symbol] = (Math.random() - 0.5) * 0.002;
+                });
+                return;
+            }
 
             const priceUpdates: Record<string, number> = {};
 
-            currentStocks.forEach(stock => {
-                if (!stock || !stock.price) return;
+            // --- FEAR & GREED DRIVER ---
+            // The "Heartbeat" of the market. 
+            // 0-20: Extreme Fear (Crash/Dump)
+            // 21-40: Fear (Bearish/Correction)
+            // 41-60: Neutral (Chop/Sideways)
+            // 61-80: Greed (Bullish/Rally)
+            // 81-100: Extreme Greed (Euphoria/Pump)
 
-                // 1. Evolve the Drift (The Trend)
-                // The drift itself takes a random walk, making trends persist but eventually turn
+            // Base bias: -0.3% to +0.3% per tick based on F&G
+            // This ensures strict correlation: Low F&G = Red Candles, High F&G = Green Candles
+            const sentimentBias = ((fearGreedIndex - 50) / 50) * 0.003;
+
+            currentStocks.forEach(stock => {
+                // 1. Evolve Drift (Trend)
                 const driftChange = (Math.random() - 0.5) * 0.0005;
                 let currentDrift = (driftRef.current[stock.symbol] || 0) + driftChange;
-
-                // Mean Reversion for Drift: Pull it slightly back to 0 so it doesn't explode
-                currentDrift *= 0.99;
+                currentDrift *= 0.99; // Mean reversion
                 driftRef.current[stock.symbol] = currentDrift;
 
-                // 2. Calculate Volatility Component (The Noise)
-                // Use Box-Muller for "Fat Tail" risks
+                // 2. Volatility (Fat Tail)
+                // Higher volatility when F&G is extreme (Fear OR Greed)
+                const extremeFactor = Math.abs(fearGreedIndex - 50) / 50; // 0 to 1
                 const baseStock = STOCK_CATALOG.find(s => s.symbol === stock.symbol);
-                const volatility = (baseStock?.volatility || 1.0) * 0.008; // Base volatility scaling
+                const volatility = (baseStock?.volatility || 1.0) * (0.005 + (extremeFactor * 0.005));
                 const noise = boxMullerRandom() * volatility;
 
-                // 2. Get mood and sector biases
-                const moodDirectionBias = (fearGreedIndex - 50) / 5000; // ±0.01 max
-                const sectorBias = getSectorMultiplier(stock.sector as any, marketCyclePhase);
+                // 3. Sector Sensitivity
+                // Tech/Crypto/Consumer are "Risk On" (High Beta) - they move MORE with F&G
+                // Utilities/Healthcare are "Risk Off" (Low Beta) - they move LESS
+                let beta = 1.0;
+                if (stock.sector === 'Tech' || stock.sector === 'Consumer') beta = 1.5;
+                if (stock.sector === 'Healthcare' || stock.sector === 'Energy') beta = 0.7;
 
-                // 3. Calculate Final Move
-                // Move = Drift + Noise + Mood Bias + Sector Bias
-                const percentChange = currentDrift + noise + moodDirectionBias + sectorBias;
-
-                // 4. Update Price
+                // 4. Calculate Move
+                // Move = (Sentiment * Beta) + Noise + Drift
+                const percentChange = (sentimentBias * beta) + noise + currentDrift;
                 let newPrice = stock.price * (1 + percentChange);
 
-                // Safety clamps
-                const maxPrice = (baseStock?.price || 100) * 20;
-                const minPrice = 1.00; // Penny stock floor
-                newPrice = Math.max(minPrice, Math.min(maxPrice, newPrice));
+                // --- SMART FLOOR LOGIC ---
+                const basePrice = baseStock?.price || 10;
+                const hardFloor = basePrice * 0.20; // 20% of base price is the floor
+
+                if (newPrice < hardFloor) {
+                    newPrice = hardFloor;
+                    // Bounce off the floor!
+                    driftRef.current[stock.symbol] = Math.abs(driftRef.current[stock.symbol]) * 0.5 + 0.005;
+                }
+
+                // --- SMART CEILING LOGIC ---
+                let ceilingMult = 50;
+                if (gdpGrowth < 0) ceilingMult = 1.5; // Recession cap
+
+                const hardCeiling = basePrice * ceilingMult;
+                if (newPrice > hardCeiling) {
+                    newPrice = hardCeiling;
+                    driftRef.current[stock.symbol] = -Math.abs(driftRef.current[stock.symbol]) * 0.5 - 0.002;
+                }
+
+                // Safety Clamps
+                if (isNaN(newPrice)) newPrice = stock.price;
+                newPrice = Math.max(0.01, Math.min(100000, newPrice));
 
                 priceUpdates[stock.symbol] = newPrice;
             });
 
             updateMarketPrices(priceUpdates);
 
-            // 🌡️ UPDATE MARKET MOOD (Feed data to central mood store)
+            // Update Mood Metrics
             const stocksAboveMA = currentStocks.filter(s => {
-                // Simple check: is current price above recent average?
-                const recentPrices = s.history.slice(-10).map(h => h.value);
-                const avg = recentPrices.reduce((sum, p) => sum + p, 0) / recentPrices.length;
+                const recent = s.history.slice(-10).map(h => h.value);
+                const avg = recent.reduce((a, b) => a + b, 0) / recent.length;
                 return s.price > avg;
             }).length;
 
-            // Calculate new highs/lows (stocks within 2% of recent extremes)
-            let newHighs = 0;
-            let newLows = 0;
-            let risingVol = 0;
-            let fallingVol = 0;
-            let totalVol = 0;
-
+            let newHighs = 0, newLows = 0, risingVol = 0, fallingVol = 0;
             currentStocks.forEach(s => {
-                const recentPrices = s.history.slice(-50).map(h => h.value);
-                const max = Math.max(...recentPrices);
-                const min = Math.min(...recentPrices);
+                const recent = s.history.slice(-50).map(h => h.value);
+                const max = Math.max(...recent);
+                const min = Math.min(...recent);
+                if (s.price >= max * 0.99) newHighs++;
+                if (s.price <= min * 1.01) newLows++;
 
-                if (s.price >= max * 0.98) newHighs++;
-                if (s.price <= min * 1.02) newLows++;
-
-                // Track volume by direction
-                const prevPrice = s.history.length > 1 ? s.history[s.history.length - 2].value : s.price;
-                const isRising = s.price > prevPrice;
-                const vol = Math.abs(s.price - prevPrice) * 1000; // Simplified volume
-
-                totalVol += vol;
-                if (isRising) risingVol += vol;
+                const prev = s.history.length > 1 ? s.history[s.history.length - 2].value : s.price;
+                const vol = Math.abs(s.price - prev) * 1000;
+                if (s.price > prev) risingVol += vol;
                 else fallingVol += vol;
             });
 
-            // Calculate average volatility
-            const volatilities = currentStocks.map(s => {
-                const baseStock = STOCK_CATALOG.find(bs => bs.symbol === s.symbol);
-                return (baseStock?.volatility || 1.0) * 100;
-            });
-            const avgVol = volatilities.reduce((sum, v) => sum + v, 0) / volatilities.length;
+            const avgVol = currentStocks.reduce((sum, s) => {
+                const base = STOCK_CATALOG.find(b => b.symbol === s.symbol);
+                return sum + ((base?.volatility || 1) * 100);
+            }, 0) / currentStocks.length;
 
-            // Get cash percentage from main store
             const { cash, holdings } = useStore.getState();
             const totalEquity = cash + Object.values(holdings).reduce((sum, h) => {
-                const stock = currentStocks.find(s => s.symbol === h.symbol);
-                return sum + (stock ? h.quantity * stock.price : 0);
+                const s = currentStocks.find(st => st.symbol === h.symbol);
+                return sum + (s ? h.quantity * s.price : 0);
             }, 0);
             const cashPct = totalEquity > 0 ? cash / totalEquity : 0.5;
 
-            // Update mood store with all metrics
-            updateMood({
+            // Feedback Loop: Market performance feeds back into F&G
+            // But heavily damped to prevent runaway feedback loops
+            updateMarketEngine({
                 stocksAboveMA,
                 totalStocks: currentStocks.length,
                 newHighs,
@@ -177,34 +240,22 @@ export const useMarketEngine = () => {
                 risingVolume: risingVol,
                 fallingVolume: fallingVol,
                 averageVolatility: avgVol,
-                cashPercentage: cashPct
+                cashPercentage: cashPct,
+                momentum: (risingVol - fallingVol) / (risingVol + fallingVol + 1) * 100 // Calculated momentum
             });
 
-            // Increment tick counter
             tick();
 
-            // Check for market cycle transitions (every 300 ticks)
-            const returns = currentStocks.map(s => {
-                const history = s.history.slice(-50);
-                if (history.length < 2) return 0;
-                const oldPrice = history[0].value;
-                return (s.price - oldPrice) / oldPrice;
-            });
-            const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
-            checkCycleTransition(avgReturn);
-
-        }, 3000); // 3 second tick (Throttled for performance)
+        }, 1000);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [fearGreedIndex, interestRate, gdpGrowth]); // Re-bind on F&G change
 
-    // 📰 NEWS SYSTEM (Organic Triggers)
+    // 4. NEWS SYSTEM
     useEffect(() => {
         const checkNews = () => {
             const timeSinceLastNews = Date.now() - lastNewsTimeRef.current;
-            const nextInterval = 120000; // 2 minutes
-
-            if (timeSinceLastNews > nextInterval) {
+            if (timeSinceLastNews > 120000) { // 2 mins
                 const currentStocks = useStore.getState().stocks;
                 if (currentStocks.length === 0) return;
 
@@ -214,41 +265,19 @@ export const useMarketEngine = () => {
                     lastNewsTimeRef.current = Date.now();
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-                    // 📰 NEWS SHIFTS MARKET SENTIMENT!
-                    useMarketMoodStore.getState().applyNewsSentiment(
-                        Math.abs(news.impact),
-                        news.impact > 0 ? 'BULLISH' : 'BEARISH'
-                    );
-
-                    // 🔥 NEWS IMPACTS DRIFT (The "Kick")
-                    // Instead of just jumping the price, we permanently shift the trend (Drift)
-                    // This creates a lasting narrative effect.
-
+                    // News Impact Logic
                     const priceUpdates: Record<string, number> = {};
-
                     currentStocks.forEach(stock => {
-                        let impactFactor = 0;
-                        let driftKick = 0;
+                        let impact = 0;
+                        if (news.type === 'COMPANY' && news.symbol === stock.symbol) impact = news.impact;
+                        else if (news.type === 'SECTOR' && news.sector === stock.sector) impact = news.impact * 0.8;
+                        else if (news.type === 'MARKET') impact = news.impact * 0.5;
 
-                        if (news.type === 'COMPANY' && news.symbol === stock.symbol) {
-                            impactFactor = news.impact; // Immediate jump
-                            driftKick = news.impact * 0.1; // Lasting trend shift
-                        } else if (news.type === 'SECTOR' && news.sector === stock.sector) {
-                            impactFactor = news.impact * 0.8;
-                            driftKick = news.impact * 0.05;
-                        } else if (news.type === 'MARKET' || news.type === 'ECONOMIC') {
-                            impactFactor = news.impact * 0.5;
-                            driftKick = news.impact * 0.02;
-                        }
-
-                        if (impactFactor !== 0) {
-                            // 1. Immediate Price Shock
-                            const currentPrice = stock.price;
-                            priceUpdates[stock.symbol] = currentPrice * (1 + impactFactor);
-
-                            // 2. Lasting Drift Shift
+                        if (impact !== 0) {
+                            priceUpdates[stock.symbol] = stock.price * (1 + impact);
+                            // Permanent Drift Shift
                             if (driftRef.current[stock.symbol] !== undefined) {
-                                driftRef.current[stock.symbol] += driftKick;
+                                driftRef.current[stock.symbol] += impact * 0.1;
                             }
                         }
                     });
@@ -259,21 +288,14 @@ export const useMarketEngine = () => {
                 }
             }
         };
-
-        const newsInterval = setInterval(checkNews, 2000);
+        const newsInterval = setInterval(checkNews, 5000);
         return () => clearInterval(newsInterval);
     }, []);
 
-    return {
-        dismissEvent: () => setActiveNews(null)
-    };
-};
-
-        const newsInterval = setInterval(checkNews, 2000);
-        return () => clearInterval(newsInterval);
-    }, []);
+    // Optimization: Stable callback
+    const dismissEvent = useRef(() => setActiveNews(null)).current;
 
     return {
-        dismissEvent: () => setActiveNews(null)
+        dismissEvent
     };
 };

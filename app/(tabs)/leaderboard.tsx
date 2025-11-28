@@ -9,6 +9,8 @@ import { GlassCard } from '../../components/GlassCard';
 import { COLORS, FONTS, SPACING, RADIUS } from '../../constants/theme';
 import { GRADIENTS } from '../../constants/gradients';
 import { LeaderboardEntry } from '../../types';
+import { AppBackground } from '../../components/AppBackground';
+import { useTheme } from '../../hooks/useTheme';
 
 // Mock Data Generator
 const generateMockLeaderboard = (userEquity: number, username: string, userLevel: number, userAchievements: number): LeaderboardEntry[] => {
@@ -43,6 +45,7 @@ const generateMockLeaderboard = (userEquity: number, username: string, userLevel
 
 export default function LeaderboardScreen() {
     const { cash, holdings, stocks, username, level, achievements } = useStore();
+    const { theme } = useTheme();
     const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -81,7 +84,7 @@ export default function LeaderboardScreen() {
         if (rank === 1) return GRADIENTS.gold;
         if (rank === 2) return GRADIENTS.silver;
         if (rank === 3) return GRADIENTS.bronze;
-        return GRADIENTS.glass;
+        return [theme.bgElevated, theme.bgElevated] as const;
     };
 
     const getRankEmoji = (rank: number) => {
@@ -101,29 +104,29 @@ export default function LeaderboardScreen() {
                 colors={gradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={[styles.rankCard, item.isUser && styles.userCard]}
+                style={[styles.rankCard, item.isUser && { borderColor: theme.primary, borderWidth: 2 }, { borderColor: isTop3 ? 'transparent' : theme.border }]}
             >
                 {/* Rank Badge */}
                 <View style={styles.rankBadge}>
                     <Text style={styles.rankEmoji}>{emoji}</Text>
-                    <Text style={[styles.rankNumber, isTop3 ? styles.rankNumberTop3 : undefined]}>#{item.rank}</Text>
+                    <Text style={[styles.rankNumber, isTop3 ? styles.rankNumberTop3 : { color: theme.textSub }]}>#{item.rank}</Text>
                 </View>
 
                 {/* User Info */}
                 <View style={styles.userInfo}>
-                    <Text style={[styles.username, isTop3 ? styles.usernameTop3 : undefined]} numberOfLines={1}>
+                    <Text style={[styles.username, isTop3 ? styles.usernameTop3 : { color: theme.text }]} numberOfLines={1}>
                         {item.username} {item.isUser && '(You)'}
                     </Text>
                     <View style={styles.statsRow}>
-                        <Text style={styles.statText}>Lvl {item.level}</Text>
-                        <Text style={styles.dot}>•</Text>
-                        <Text style={styles.statText}>{item.achievementsUnlocked} 🏆</Text>
+                        <Text style={[styles.statText, { color: isTop3 ? 'rgba(0,0,0,0.6)' : theme.textSub }]}>Lvl {item.level}</Text>
+                        <Text style={[styles.dot, { color: isTop3 ? 'rgba(0,0,0,0.6)' : theme.textSub }]}>•</Text>
+                        <Text style={[styles.statText, { color: isTop3 ? 'rgba(0,0,0,0.6)' : theme.textSub }]}>{item.achievementsUnlocked} 🏆</Text>
                     </View>
                 </View>
 
                 {/* Equity */}
                 <View style={styles.equitySection}>
-                    <Text style={[styles.equity, isTop3 ? styles.equityTop3 : undefined]}>
+                    <Text style={[styles.equity, isTop3 ? styles.equityTop3 : { color: theme.text }]}>
                         £{item.equity.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
                     </Text>
                 </View>
@@ -132,56 +135,57 @@ export default function LeaderboardScreen() {
     };
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-            {/* Header */}
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>Leaderboard</Text>
-                <Trophy size={28} color={COLORS.warning} />
-            </View>
+        <AppBackground>
+            <SafeAreaView style={[styles.container, { backgroundColor: theme.bg }]} edges={['top']}>
+                {/* Header */}
+                <View style={styles.header}>
+                    <Text style={[styles.headerTitle, { color: theme.text }]}>Leaderboard</Text>
+                    <Trophy size={28} color={theme.warning} />
+                </View>
 
-            {/* User Rank Highlight */}
-            {userRank && (
-                <LinearGradient
-                    colors={['#F59E0B', '#D97706']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.userRankCard}
-                >
-                    <Text style={styles.userRankLabel}>Your Rank</Text>
-                    <View style={styles.userRankRow}>
-                        <Text style={styles.userRankEmoji}>🏆</Text>
-                        <Text style={styles.userRankNumber}>#{userRank.rank}</Text>
-                        <View style={{ flex: 1 }} />
-                        <Text style={styles.userRankEquity}>
-                            £{userRank.equity.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
-                        </Text>
-                    </View>
-                </LinearGradient>
-            )}
+                {/* User Rank Highlight */}
+                {userRank && (
+                    <LinearGradient
+                        colors={[theme.primary, theme.primary + 'CC']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.userRankCard}
+                    >
+                        <Text style={[styles.userRankLabel, { color: theme.bg }]}>Your Rank</Text>
+                        <View style={styles.userRankRow}>
+                            <Text style={styles.userRankEmoji}>🏆</Text>
+                            <Text style={[styles.userRankNumber, { color: theme.bg }]}>#{userRank.rank}</Text>
+                            <View style={{ flex: 1 }} />
+                            <Text style={[styles.userRankEquity, { color: theme.bg }]}>
+                                £{userRank.equity.toLocaleString('en-GB', { maximumFractionDigits: 0 })}
+                            </Text>
+                        </View>
+                    </LinearGradient>
+                )}
 
-            {/* Leaderboard List */}
-            <FlatList
-                data={leaderboardData}
-                renderItem={renderItem}
-                keyExtractor={item => item.id}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                    <RefreshControl
-                        refreshing={refreshing}
-                        onRefresh={onRefresh}
-                        tintColor={COLORS.accent}
-                    />
-                }
-            />
-        </SafeAreaView>
+                {/* Leaderboard List */}
+                <FlatList
+                    data={leaderboardData}
+                    renderItem={renderItem}
+                    keyExtractor={item => item.id}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            tintColor={theme.primary}
+                        />
+                    }
+                />
+            </SafeAreaView>
+        </AppBackground>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: COLORS.bg,
     },
     header: {
         flexDirection: 'row',
@@ -193,7 +197,6 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 32,
         fontWeight: '800',
-        color: COLORS.text,
         fontFamily: FONTS.bold,
     },
     userRankCard: {
@@ -205,7 +208,6 @@ const styles = StyleSheet.create({
     userRankLabel: {
         fontSize: 12,
         fontWeight: '600',
-        color: 'rgba(0,0,0,0.7)',
         fontFamily: FONTS.semibold,
         textTransform: 'uppercase',
         letterSpacing: 1,
@@ -222,13 +224,11 @@ const styles = StyleSheet.create({
     userRankNumber: {
         fontSize: 32,
         fontWeight: '800',
-        color: '#000',
         fontFamily: FONTS.bold,
     },
     userRankEquity: {
         fontSize: 24,
         fontWeight: '700',
-        color: '#000',
         fontFamily: FONTS.bold,
     },
     listContent: {
@@ -242,11 +242,6 @@ const styles = StyleSheet.create({
         padding: SPACING.lg,
         borderRadius: RADIUS.lg,
         borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-    },
-    userCard: {
-        borderColor: COLORS.accent,
-        borderWidth: 2,
     },
     rankBadge: {
         alignItems: 'center',
@@ -259,7 +254,6 @@ const styles = StyleSheet.create({
     rankNumber: {
         fontSize: 14,
         fontWeight: '700',
-        color: COLORS.textSub,
         fontFamily: FONTS.bold,
     },
     rankNumberTop3: {
@@ -271,7 +265,6 @@ const styles = StyleSheet.create({
     username: {
         fontSize: 16,
         fontWeight: '600',
-        color: COLORS.text,
         fontFamily: FONTS.semibold,
         marginBottom: 4,
     },
@@ -285,12 +278,10 @@ const styles = StyleSheet.create({
     },
     statText: {
         fontSize: 12,
-        color: COLORS.textSub,
         fontFamily: FONTS.regular,
     },
     dot: {
         fontSize: 12,
-        color: COLORS.textSub,
         marginHorizontal: 4,
     },
     equitySection: {
@@ -299,7 +290,6 @@ const styles = StyleSheet.create({
     equity: {
         fontSize: 18,
         fontWeight: '700',
-        color: COLORS.text,
         fontFamily: FONTS.bold,
     },
     equityTop3: {

@@ -37,10 +37,22 @@ const SECTOR_COLORS = {
 
 export function PortfolioDetailModal({ visible, onClose, type }: PortfolioDetailModalProps) {
     const { stocks, holdings, cash } = useStore();
-    const { cryptos, cryptoHoldings, cryptoWallet } = useCryptoStore();
+    const { cryptos, cryptoHoldings, cryptoWallet, getTotalCryptoValue } = useCryptoStore();
 
     // Calculate metrics based on type
     const analytics = useMemo(() => {
+        // Common Calculations
+        const stockValue = stocks.reduce((sum, s) => sum + ((holdings[s.symbol]?.quantity || 0) * s.price), 0);
+        const cryptoTotalValue = getTotalCryptoValue();
+        const totalNetWorth = stockValue + cryptoTotalValue + cash + cryptoWallet;
+
+        // Net Worth Split
+        const netWorthSplit = {
+            stocks: (stockValue / totalNetWorth) * 100,
+            crypto: (cryptoTotalValue / totalNetWorth) * 100,
+            cash: ((cash + cryptoWallet) / totalNetWorth) * 100
+        };
+
         if (type === 'stocks') {
             // Stock portfolio analytics
             const holdingsArray = Object.entries(holdings).map(([symbol, holding]) => {
@@ -108,6 +120,7 @@ export function PortfolioDetailModal({ visible, onClose, type }: PortfolioDetail
                 topLosers,
                 diversificationScore,
                 positionCount: holdingsArray.length,
+                netWorthSplit // Added
             };
         } else {
             // Crypto portfolio analytics
@@ -156,9 +169,10 @@ export function PortfolioDetailModal({ visible, onClose, type }: PortfolioDetail
                 positionCount: holdingsArray.length,
                 averageLeverage,
                 leveragedPositions,
+                netWorthSplit // Added
             };
         }
-    }, [type, stocks, holdings, cash, cryptos, cryptoHoldings, cryptoWallet]);
+    }, [type, stocks, holdings, cash, cryptos, cryptoHoldings, cryptoWallet, getTotalCryptoValue]);
 
     const renderGlassCard = (children: React.ReactNode, style?: any) => (
         <LinearGradient
@@ -268,6 +282,32 @@ export function PortfolioDetailModal({ visible, onClose, type }: PortfolioDetail
                                     </Text>
                                 </View>
                             </LinearGradient>
+
+                            {/* Net Worth Split - NEW */}
+                            <View style={styles.sectionHeader}>
+                                <PieChart size={16} color="#00D9FF" />
+                                <Text style={styles.sectionTitle}>NET WORTH SPLIT</Text>
+                            </View>
+                            {renderGlassCard(
+                                <View style={styles.splitRow}>
+                                    <View style={styles.splitItem}>
+                                        <Text style={[styles.splitLabel, { color: '#00D9FF' }]}>Stocks</Text>
+                                        <Text style={styles.splitValue}>{analytics.netWorthSplit.stocks.toFixed(1)}%</Text>
+                                        <View style={[styles.splitBar, { backgroundColor: '#00D9FF', width: `${analytics.netWorthSplit.stocks}%` }]} />
+                                    </View>
+                                    <View style={styles.splitItem}>
+                                        <Text style={[styles.splitLabel, { color: '#8E2DE2' }]}>Crypto</Text>
+                                        <Text style={styles.splitValue}>{analytics.netWorthSplit.crypto.toFixed(1)}%</Text>
+                                        <View style={[styles.splitBar, { backgroundColor: '#8E2DE2', width: `${analytics.netWorthSplit.crypto}%` }]} />
+                                    </View>
+                                    <View style={styles.splitItem}>
+                                        <Text style={[styles.splitLabel, { color: '#FFD700' }]}>Cash</Text>
+                                        <Text style={styles.splitValue}>{analytics.netWorthSplit.cash.toFixed(1)}%</Text>
+                                        <View style={[styles.splitBar, { backgroundColor: '#FFD700', width: `${analytics.netWorthSplit.cash}%` }]} />
+                                    </View>
+                                </View>,
+                                { marginBottom: SPACING.lg }
+                            )}
 
                             {/* Stats Grid with Visual Indicators */}
                             <View style={styles.statsGrid}>
@@ -760,5 +800,30 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontFamily: FONTS.medium,
         color: 'rgba(255,255,255,0.5)',
+    },
+    splitRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: SPACING.md,
+    },
+    splitItem: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    splitLabel: {
+        fontSize: 12,
+        fontFamily: FONTS.bold,
+        marginBottom: 4,
+    },
+    splitValue: {
+        fontSize: 16,
+        fontFamily: FONTS.bold,
+        color: '#FFF',
+        marginBottom: 8,
+    },
+    splitBar: {
+        height: 4,
+        borderRadius: 2,
+        minWidth: 4, // Ensure visibility even if small
     },
 });

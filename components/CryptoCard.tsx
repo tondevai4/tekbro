@@ -3,11 +3,13 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated, Image } from 'react
 import { useRouter } from 'expo-router';
 import { TrendingUp, TrendingDown, Zap, Star } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
+import * as Haptics from 'expo-haptics';
+import { FONTS, SPACING, RADIUS } from '../constants/theme';
 import { Crypto } from '../types';
 import { useCryptoStore } from '../store/useCryptoStore';
 import { HapticPatterns } from '../utils/haptics';
 import { MiniChart } from './MiniChart';
+import { useTheme } from '../hooks/useTheme';
 
 interface CryptoCardProps {
     crypto: Crypto;
@@ -15,6 +17,7 @@ interface CryptoCardProps {
 
 const CryptoCardComponent: React.FC<CryptoCardProps> = ({ crypto }) => {
     const router = useRouter();
+    const { theme } = useTheme();
     // OPTIMIZATION: Select only what we need
     // Note: We might want a separate watchlist for crypto later, or use the same one
     // For now, let's assume we might add crypto watchlist support later
@@ -30,6 +33,7 @@ const CryptoCardComponent: React.FC<CryptoCardProps> = ({ crypto }) => {
     const isPositive = priceChange >= 0;
 
     const handlePressIn = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         Animated.spring(scaleAnim, {
             toValue: 0.97,
             tension: 400,
@@ -82,7 +86,7 @@ const CryptoCardComponent: React.FC<CryptoCardProps> = ({ crypto }) => {
                                 {crypto.logo ? (
                                     <Image source={crypto.logo} style={styles.logo} resizeMode="contain" />
                                 ) : (
-                                    <Text style={styles.iconText}>{crypto.symbol[0]}</Text>
+                                    <Text style={[styles.iconText, { color: theme.white }]}>{crypto.symbol[0]}</Text>
                                 )}
                             </View>
                             {/* Volatility Badge */}
@@ -190,7 +194,6 @@ const styles = StyleSheet.create({
     iconText: {
         fontSize: 20,
         fontFamily: FONTS.bold,
-        color: COLORS.white,
     },
     badge: {
         position: 'absolute',
@@ -202,6 +205,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 2,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.2)',
     },
     badgeText: {
         fontSize: 8,

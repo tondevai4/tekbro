@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TextInput, Platform, Keyboard, TouchableWithoutFeedback, Dimensions, TouchableOpacity } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { appStorage } from '../utils/storage';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
@@ -20,6 +20,7 @@ import { HapticPatterns } from '../utils/haptics';
 import { AppBackground } from '../components/AppBackground';
 import { Lock, Check, ShieldCheck, ChevronRight, ArrowRight } from 'lucide-react-native';
 import { useStore } from '../store/useStore';
+import { useTheme } from '../hooks/useTheme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -27,7 +28,8 @@ export default function OnboardingScreen() {
     const router = useRouter();
     const [step, setStep] = useState(0);
     const [name, setName] = useState('');
-    const { setProfile } = useStore();
+    const { setProfile, setOnboardingCompleted } = useStore();
+    const { theme } = useTheme();
     const [displayMoney, setDisplayMoney] = useState(0);
     const moneyAnim = useSharedValue(0);
 
@@ -39,7 +41,7 @@ export default function OnboardingScreen() {
     const handleFinish = async () => {
         HapticPatterns.success();
         setProfile(name || 'Trader', 'default');
-        await AsyncStorage.setItem('onboarding_completed', 'true');
+        setOnboardingCompleted(true);
         router.replace('/(tabs)');
     };
 
@@ -81,19 +83,23 @@ export default function OnboardingScreen() {
                                 exiting={FadeOut.duration(500)}
                                 style={styles.stepContainer}
                             >
-                                <View style={styles.iconContainer}>
-                                    <Lock size={48} color={COLORS.accent} />
+                                <View style={[styles.iconContainer, { backgroundColor: theme.primary + '15', borderColor: theme.primary }]}>
+                                    <Lock size={48} color={theme.primary} />
                                 </View>
-                                <Text style={styles.title}>Restricted Access</Text>
-                                <Text style={styles.subtitle}>
+                                <Text style={[styles.title, { color: theme.text }]}>Restricted Access</Text>
+                                <Text style={[styles.subtitle, { color: theme.textSub }]}>
                                     You have been selected for the PaperTrader Elite program.
                                 </Text>
-                                <Text style={[styles.subtitle, { marginTop: 20, color: COLORS.text }]}>
+                                <Text style={[styles.subtitle, { marginTop: 20, color: theme.text }]}>
                                     Do you accept the invitation?
                                 </Text>
-                                <TouchableOpacity style={styles.primaryButton} onPress={handleNext} activeOpacity={0.8}>
-                                    <Text style={styles.buttonText}>Initialize Protocol</Text>
-                                    <ArrowRight size={20} color="#000" />
+                                <TouchableOpacity
+                                    style={[styles.primaryButton, { backgroundColor: theme.primary, shadowColor: theme.primary }]}
+                                    onPress={handleNext}
+                                    activeOpacity={0.8}
+                                >
+                                    <Text style={[styles.buttonText, { color: theme.bg }]}>Initialize Protocol</Text>
+                                    <ArrowRight size={20} color={theme.bg} />
                                 </TouchableOpacity>
                             </Animated.View>
                         )}
@@ -105,17 +111,17 @@ export default function OnboardingScreen() {
                                 exiting={FadeOut.duration(300)}
                                 style={styles.stepContainer}
                             >
-                                <Text style={styles.stepLabel}>STEP 1 / 2</Text>
-                                <Text style={styles.title}>Identity Verification</Text>
-                                <Text style={styles.subtitle}>
+                                <Text style={[styles.stepLabel, { color: theme.primary }]}>STEP 1 / 2</Text>
+                                <Text style={[styles.title, { color: theme.text }]}>Identity Verification</Text>
+                                <Text style={[styles.subtitle, { color: theme.textSub }]}>
                                     Enter your trading alias to establish your secure ledger.
                                 </Text>
-                                <View style={styles.inputWrapper}>
-                                    <BlurView intensity={20} tint="light" style={styles.blurInput}>
+                                <View style={[styles.inputWrapper, { borderColor: theme.border }]}>
+                                    <BlurView intensity={20} tint="dark" style={styles.blurInput}>
                                         <TextInput
-                                            style={styles.input}
+                                            style={[styles.input, { color: theme.text }]}
                                             placeholder="Enter Alias"
-                                            placeholderTextColor="rgba(255,255,255,0.3)"
+                                            placeholderTextColor={theme.textMuted}
                                             value={name}
                                             onChangeText={setName}
                                             autoCapitalize="words"
@@ -125,9 +131,13 @@ export default function OnboardingScreen() {
                                     </BlurView>
                                 </View>
                                 {name && (
-                                    <TouchableOpacity style={styles.primaryButton} onPress={handleNext} activeOpacity={0.8}>
-                                        <Text style={styles.buttonText}>Confirm Identity</Text>
-                                        <Check size={20} color="#000" />
+                                    <TouchableOpacity
+                                        style={[styles.primaryButton, { backgroundColor: theme.primary, shadowColor: theme.primary }]}
+                                        onPress={handleNext}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={[styles.buttonText, { color: theme.bg }]}>Confirm Identity</Text>
+                                        <Check size={20} color={theme.bg} />
                                     </TouchableOpacity>
                                 )}
                             </Animated.View>
@@ -139,17 +149,17 @@ export default function OnboardingScreen() {
                                 entering={FadeIn.duration(800)}
                                 style={styles.stepContainer}
                             >
-                                <View style={styles.iconContainer}>
-                                    <ShieldCheck size={64} color={COLORS.positive} />
+                                <View style={[styles.iconContainer, { backgroundColor: theme.positive + '15', borderColor: theme.positive }]}>
+                                    <ShieldCheck size={64} color={theme.positive} />
                                 </View>
-                                <Text style={styles.stepLabel}>FINAL STEP</Text>
-                                <Text style={styles.title}>Capital Allocation</Text>
-                                <Text style={styles.subtitle}>
+                                <Text style={[styles.stepLabel, { color: theme.primary }]}>FINAL STEP</Text>
+                                <Text style={[styles.title, { color: theme.text }]}>Capital Allocation</Text>
+                                <Text style={[styles.subtitle, { color: theme.textSub }]}>
                                     Transferring initial liquidity to your portfolio...
                                 </Text>
                                 <View style={styles.moneyContainer}>
-                                    <Text style={styles.currencySymbol}>£</Text>
-                                    <Text style={styles.moneyText}>{displayMoney.toLocaleString()}</Text>
+                                    <Text style={[styles.currencySymbol, { color: theme.positive }]}>£</Text>
+                                    <Text style={[styles.moneyText, { color: theme.positive }]}>{displayMoney.toLocaleString()}</Text>
                                 </View>
                                 {displayMoney >= 1000000 && (
                                     <>
@@ -157,13 +167,13 @@ export default function OnboardingScreen() {
                                             entering={SlideInDown.springify()}
                                             style={styles.stampContainer}
                                         >
-                                            <View style={styles.stamp}>
-                                                <Text style={styles.stampText}>FUNDS AVAILABLE</Text>
+                                            <View style={[styles.stamp, { borderColor: theme.positive, backgroundColor: theme.positive + '15' }]}>
+                                                <Text style={[styles.stampText, { color: theme.positive }]}>FUNDS AVAILABLE</Text>
                                             </View>
                                         </Animated.View>
                                         <View style={{ flex: 1 }} />
                                         <Animated.View entering={FadeIn.delay(500)} style={{ width: '100%' }}>
-                                            <SlideButton onComplete={handleFinish} label="Slide to Enter Market" />
+                                            <SlideButton onComplete={handleFinish} label="Slide to Enter Market" theme={theme} />
                                         </Animated.View>
                                     </>
                                 )}
@@ -178,7 +188,7 @@ export default function OnboardingScreen() {
 }
 
 // Slide Button Component
-function SlideButton({ onComplete, label, icon }: { onComplete: () => void; label: string; icon?: 'check' | 'arrow' }) {
+function SlideButton({ onComplete, label, icon, theme }: { onComplete: () => void; label: string; icon?: 'check' | 'arrow', theme: any }) {
     const SLIDER_WIDTH = SCREEN_WIDTH - (SPACING.xxl * 2);
     const SLIDE_THRESHOLD = SLIDER_WIDTH * 0.75;
     const translateX = useSharedValue(0);
@@ -211,16 +221,16 @@ function SlideButton({ onComplete, label, icon }: { onComplete: () => void; labe
     }));
 
     return (
-        <View style={styles.slideContainer}>
+        <View style={[styles.slideContainer, { backgroundColor: theme.bgElevated, borderColor: theme.primary }]}>
             <Animated.View style={[styles.slideTextContainer, textOpacity]}>
-                <Text style={styles.slideText}>{label}</Text>
+                <Text style={[styles.slideText, { color: theme.primary }]}>{label}</Text>
             </Animated.View>
             <GestureDetector gesture={gesture}>
-                <Animated.View style={[styles.slider, sliderStyle]}>
+                <Animated.View style={[styles.slider, sliderStyle, { backgroundColor: theme.primary, shadowColor: theme.primary }]}>
                     {icon === 'check' ? (
-                        <Check size={28} color="#000" strokeWidth={3} />
+                        <Check size={28} color={theme.bg} strokeWidth={3} />
                     ) : (
-                        <ChevronRight size={28} color="#000" strokeWidth={3} />
+                        <ChevronRight size={28} color={theme.bg} strokeWidth={3} />
                     )}
                 </Animated.View>
             </GestureDetector>
@@ -246,24 +256,20 @@ const styles = StyleSheet.create({
         width: 100,
         height: 100,
         borderRadius: 50,
-        backgroundColor: 'rgba(6, 182, 212, 0.1)',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: SPACING.xl,
         borderWidth: 1,
-        borderColor: COLORS.accent,
     },
     stepLabel: {
         fontSize: 12,
         fontFamily: FONTS.bold,
-        color: COLORS.accent,
         letterSpacing: 2,
         marginBottom: SPACING.md,
     },
     title: {
         fontSize: 32,
         fontFamily: FONTS.bold,
-        color: COLORS.text,
         textAlign: 'center',
         marginBottom: SPACING.md,
         letterSpacing: -0.5,
@@ -271,7 +277,6 @@ const styles = StyleSheet.create({
     subtitle: {
         fontSize: 16,
         fontFamily: FONTS.regular,
-        color: COLORS.textSub,
         textAlign: 'center',
         lineHeight: 24,
         paddingHorizontal: SPACING.md,
@@ -282,7 +287,6 @@ const styles = StyleSheet.create({
         borderRadius: RADIUS.lg,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.1)',
     },
     blurInput: {
         padding: SPACING.lg,
@@ -290,7 +294,6 @@ const styles = StyleSheet.create({
     input: {
         fontSize: 24,
         fontFamily: FONTS.bold,
-        color: COLORS.text,
         textAlign: 'center',
     },
     moneyContainer: {
@@ -301,14 +304,12 @@ const styles = StyleSheet.create({
     currencySymbol: {
         fontSize: 32,
         fontFamily: FONTS.bold,
-        color: COLORS.positive,
         marginTop: 8,
         marginRight: 4,
     },
     moneyText: {
         fontSize: 56,
         fontFamily: FONTS.bold,
-        color: COLORS.positive,
         letterSpacing: -1,
     },
     stampContainer: {
@@ -317,30 +318,25 @@ const styles = StyleSheet.create({
     },
     stamp: {
         borderWidth: 4,
-        borderColor: COLORS.positive,
         paddingVertical: 8,
         paddingHorizontal: 16,
         borderRadius: 8,
-        backgroundColor: 'rgba(16, 185, 129, 0.1)',
     },
     stampText: {
         fontSize: 20,
         fontFamily: FONTS.bold,
-        color: COLORS.positive,
         letterSpacing: 2,
     },
     primaryButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: COLORS.accent,
         paddingVertical: 16,
         paddingHorizontal: 32,
         borderRadius: RADIUS.full,
         gap: 8,
         marginTop: SPACING.xxxl,
         width: '100%',
-        shadowColor: COLORS.accent,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 12,
@@ -349,20 +345,17 @@ const styles = StyleSheet.create({
     buttonText: {
         fontSize: 16,
         fontFamily: FONTS.bold,
-        color: '#000',
         letterSpacing: 0.5,
     },
     slideContainer: {
         width: '100%',
         height: 70,
-        backgroundColor: COLORS.bgElevated,
         borderRadius: RADIUS.full,
         marginTop: SPACING.xxxl,
         position: 'relative',
         justifyContent: 'center',
         overflow: 'hidden',
         borderWidth: 2,
-        borderColor: COLORS.accent,
     },
     slideTextContainer: {
         position: 'absolute',
@@ -373,19 +366,16 @@ const styles = StyleSheet.create({
     slideText: {
         fontSize: 16,
         fontFamily: FONTS.bold,
-        color: COLORS.accent,
         letterSpacing: 0.5,
     },
     slider: {
         width: 60,
         height: 60,
-        backgroundColor: COLORS.accent,
         borderRadius: 30,
         position: 'absolute',
         left: 5,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: COLORS.accent,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.4,
         shadowRadius: 8,
