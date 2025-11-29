@@ -15,12 +15,17 @@ import { ErrorBoundary } from '../components/ErrorBoundary';
 import { COLORS } from '../constants/theme';
 import { analytics } from '../utils/analytics';
 import { initializeCryptoStore } from '../utils/cryptoStoreInit';
+import { initDatabase } from '../src/shared/db/client';
 
 export default function RootLayout() {
     const router = useRouter();
     const segments = useSegments();
     const [isReady, setIsReady] = useState(false);
     const rootNavigationState = useRootNavigationState();
+
+    useEffect(() => {
+        initDatabase().catch(err => console.error('DB Init Error:', err));
+    }, []);
 
     // Run market engines globally
     useMarketEngine();
